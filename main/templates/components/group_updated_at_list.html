@@ -28,19 +28,21 @@
         if (!input) return;
         const query = input.value.trim().toLowerCase();
         document.querySelectorAll('#groupsUpdatedCollapse .groups-updated-row').forEach(function (row) {
-            row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+            // d-none, а не style.display: у строк есть класс d-flex (display:flex !important
+            // в Bootstrap), который перебивает инлайновый display:none
+            row.classList.toggle('d-none', !row.textContent.toLowerCase().includes(query));
         });
         document.querySelectorAll('#groupsUpdatedCollapse .groups-updated-form-label').forEach(function (label) {
             let visible = false;
             let node = label.nextElementSibling;
             while (node && !node.classList.contains('groups-updated-form-label')) {
-                if (node.classList.contains('groups-updated-row') && node.style.display !== 'none') {
+                if (node.classList.contains('groups-updated-row') && !node.classList.contains('d-none')) {
                     visible = true;
                     break;
                 }
                 node = node.nextElementSibling;
             }
-            label.style.display = visible ? '' : 'none';
+            label.classList.toggle('d-none', !visible);
         });
     }
 
