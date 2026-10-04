@@ -1,7 +1,10 @@
 import copy
+import json
 
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.db import transaction
+from django.http import JsonResponse, HttpResponseNotAllowed
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -212,63 +215,152 @@ def render_delete_schedule_page(request):
         return redirect(url)
 
 
+FULL_TIME_IMPORT_NUMBERS = {1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0}
+
+
 @csrf_exempt
 @login_required
-def render_import_schedule_page(request):
-    data = get_data_for_schedule()
-    data["numbers"] = range(1, 9)
-    if request.method == "GET":
+def render_import_schedule_page_vo(request):
+    """Страница мультифайлового импорта очного расписания — файлы ВО."""
+    return _render_import_page(request, 'higher_education', 'ВО')
+
+
+@csrf_exempt
+@login_required
+def render_import_schedule_page_spo(request):
+    """Страница мультифайлового импорта очного расписания — файлы СПО."""
+    return _render_import_page(request, 'secondary_vocational_education', 'СПО')
+
+
+def _render_import_page(request, education_type, education_type_label):
+    if request.method == 'GET':
+        data = get_data_for_schedule()
+        data['numbers'] = range(1, 9)
+        data['education_type'] = education_type
+        data['education_type_label'] = education_type_label
         return render(request, 'main/schedule_import/ScheduleFullTimeImportPage.html', context=data)
-    if request.method == "POST":
-        schedule = []
-        groups = request.POST.get('needed_groups').split(',')
+    return HttpResponseNotAllowed(['GET'])
+
+
+def _parse_import_auditorium(value):
+    """Аудитория из JSON парсера: 214 (int) или 214.0 (float) -> '214'."""
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value or '').strip()
+
+
+@csrf_exempt
+@login_required
+def save_imported_full_time_schedules(request):
+    """Сохранение результатов мультифайлового импорта очного расписания (JSON).
+
+    Запрос: {"entries": [{"groups": ["ТСПД-201", "ТСПД-203"],
+        "cells": {"<неделя>_<день>_<№ пары>": {is_special, discipline, format,
+        teacher, auditorium}, ...}}, ...]}
+
+    Записи валидируются независимо друг от друга: сохраняются только записи
+    без ошибок (расписание каждой группы записи полностью перезаписывается),
+    по ошибочным возвращаются ошибки уровня записи (ключ "_group") и
+    отдельных ячеек (ключ ячейки).
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Ожидается POST-запрос'}, status=405)
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Некорректный JSON в запросе'}, status=400)
+    entries = payload.get('entries')
+    if not isinstance(entries, list) or not entries:
+        return JsonResponse({'error': 'Нет записей для сохранения'}, status=400)
+
+    data = get_data_for_schedule()
+    day_labels = dict(data['week_days'])  # 'пн' -> 'Понедельник'
+    week_numbers = set(data['week_numbers'])  # {'1', '2'}
+
+    results = []
+    to_save = []
+    for index, entry in enumerate(entries):
+        groups = entry.get('groups')
+        if isinstance(groups, str):
+            groups = [part.strip() for part in groups.split(',')]
+        elif isinstance(groups, list):
+            groups = [str(part).strip() for part in groups]
+        else:
+            groups = []
+        # уникальные названия с сохранением порядка
+        groups = list(dict.fromkeys(g for g in groups if g))
+
+        errors = {}
+        valid_groups = []
         for group_title in groups:
             try:
                 validate_import_group_title(group_title)
+                valid_groups.append(group_title)
             except Exception as e:
-                for error in get_error_messages(e):
-                    messages.error(request, error)
+                errors.setdefault('_group', []).extend(get_error_messages(e))
+
+        prepared = []
+        for key, cell in (entry.get('cells') or {}).items():
+            parts = str(key).split('_')
+            if len(parts) != 3 or parts[0] not in week_numbers or parts[1] not in day_labels:
                 continue
-            for week in data['week_numbers']:
-                for day in data['week_days']:
-                    for number in data['numbers']:
-                        prefix = f'{week}_{day[0]}_{number}'
-                        if (request.POST.get(f'{prefix}_discipline') == '' and
-                                request.POST.get(f'{prefix}_teacher') == '' and
-                                request.POST.get(f'{prefix}_format') == '' and
-                                request.POST.get(f'{prefix}_auditorium') == ''):
-                            continue
-                        try:
-                            validate_import_input_values(group_title, week, day[1], number,
-                                                         request.POST.get(f'{prefix}_discipline'),
-                                                         request.POST.get(f'{prefix}_teacher'),
-                                                         request.POST.get(f'{prefix}_auditorium'))
-                            new_lesson = Lesson(
-                                number=number,
-                                is_special=bool(request.POST.get(f'{prefix}_is_special')),
-                                discipline=discipline_service.get_by_title(
-                                    request.POST.get(f'{prefix}_discipline')),
-                                format=request.POST.get(f'{prefix}_format') or '',
-                                teacher=teacher_service.get_by_name(
-                                    request.POST.get(f'{prefix}_teacher')),
-                                auditorium=auditorium_service.get_by_number(
-                                    request.POST.get(f'{prefix}_auditorium')),
-                                group=group_service.get_by_title(group_title),
-                            )
-                            new_slot = ConstantSchedule(lesson=new_lesson, week_day=day[0], week_number=int(week))
-                            schedule.append((new_lesson, new_slot))
-                        except Exception as e:
-                            for error in get_error_messages(e):
-                                messages.error(request, error)
-        if not messages.get_messages(request):
-            # перед перезаписью расписания групп — страховочная копия базы
-            create_backup(reason='import')
-            for group_title in groups:
+            week, day_code, number_str = parts
+            try:
+                number = float(number_str.replace(',', '.'))
+            except ValueError:
+                continue
+            if number not in FULL_TIME_IMPORT_NUMBERS:
+                continue
+            discipline = str(cell.get('discipline') or '').strip()
+            teacher = str(cell.get('teacher') or '').strip()
+            fmt = str(cell.get('format') or '').strip()
+            auditorium = _parse_import_auditorium(cell.get('auditorium'))
+            if not (discipline or teacher or fmt or auditorium):
+                continue
+            try:
+                validate_import_input_values(', '.join(groups), week, day_labels[day_code],
+                                              number_str.replace('.0', ''), discipline,
+                                              teacher, auditorium)
+                prepared.append({'number': number,
+                                 'is_special': bool(cell.get('is_special')),
+                                 'discipline': discipline, 'format': fmt,
+                                 'teacher': teacher, 'auditorium': auditorium,
+                                 'week_day': day_code, 'week_number': int(week)})
+            except Exception as e:
+                errors.setdefault(str(key), []).extend(get_error_messages(e))
+
+        if valid_groups and not errors and not prepared:
+            errors.setdefault('_group', []).append('В файле не найдено ни одной пары — сохранять нечего')
+
+        result = {'index': index, 'groups': groups, 'errors': errors}
+        if errors or not valid_groups:
+            result['status'] = 'failed'
+        else:
+            result['status'] = 'saved'
+            to_save.append({'groups': valid_groups, 'prepared': prepared})
+        results.append(result)
+
+    if to_save:
+        # страховочная копия базы перед перезаписью расписаний групп
+        create_backup(reason='import')
+    for item in to_save:
+        # одна запись = одна колонка файла: все её группы делят общую сетку
+        with transaction.atomic():
+            for group_title in item['groups']:
                 Lesson.objects.filter(group=group_service.get_by_title(group_title)).delete()
-            for lesson, slot in schedule:
-                lesson_service.update(lesson)
-                update(slot)
-            messages.success(request, f'Расписание успешно загружено для групп: ' + ', '.join(groups))
-    base_url = reverse('import_schedule')
-    url = f'{base_url}'
-    return redirect(url)
+            for cell in item['prepared']:
+                for group_title in item['groups']:
+                    new_lesson = Lesson(
+                        number=cell['number'],
+                        is_special=cell['is_special'],
+                        discipline=discipline_service.get_by_title(cell['discipline']),
+                        format=cell['format'],
+                        teacher=teacher_service.get_by_name(cell['teacher']),
+                        auditorium=auditorium_service.get_by_number(cell['auditorium']),
+                        group=group_service.get_by_title(group_title),
+                    )
+                    lesson_service.update(new_lesson)
+                    update(ConstantSchedule(lesson=new_lesson, week_day=cell['week_day'],
+                                            week_number=cell['week_number']))
+
+    return JsonResponse({'results': results})

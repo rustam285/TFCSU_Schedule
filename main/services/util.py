@@ -84,13 +84,26 @@ def update_updated_at_json():
 
 
 def touch_updated_at(sender, **kwargs):
-    """Обработчик сигнала сохранения/удаления занятия.
+    """Обработчик сигнала сохранения/удаления занятия: обновляет глобальную
+    дату последнего изменения расписания и дату группы этого занятия.
 
     Важно: функция обязана жить на уровне модуля, а не внутри AppConfig.ready().
     connect() держит обработчик по слабой ссылке — локальная функция из ready()
     собирается сборщиком мусора, и сигнал молча перестаёт работать.
     """
     update_updated_at_json()
+    instance = kwargs.get('instance')
+    if instance is not None and getattr(instance, 'group_id', None):
+        touch_group_updated_at(instance.group_id)
+
+
+def touch_group_updated_at(group_id):
+    """Отмечает «сейчас» как дату последнего изменения расписания группы."""
+    from django.utils import timezone
+
+    from main.models import Group
+    # .update(), а не save(): без дополнительных сигналов и запросов
+    Group.objects.filter(pk=group_id).update(updated_at=timezone.now())
 
 
 def get_updated_at_from_json() -> str:

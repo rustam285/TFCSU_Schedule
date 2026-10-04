@@ -30,6 +30,8 @@ class Group(models.Model):
     form_of_education = models.CharField('Форма обучения', max_length=50, choices=FormOfEducation)
     course = models.IntegerField('Курс')
     faculty = models.ForeignKey(Faculty, blank=True, null=True, on_delete=models.CASCADE)
+    updated_at = models.DateTimeField('Дата последнего изменения расписания', null=True, blank=True,
+                                      editable=False)
 
     def __str__(self):
         return self.title

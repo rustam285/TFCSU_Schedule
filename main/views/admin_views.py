@@ -22,7 +22,8 @@ def render_start_page(request):
             'ftf_buttons': ftf_buttons,
             'mf_buttons': mf_buttons,
             'admin_check_schedule_buttons': admin_check_schedule_buttons,
-            'updated_at': get_updated_at_from_json()
+            'updated_at': get_updated_at_from_json(),
+            'groups_by_form': group_service.get_sorted_by_form_with_updated_at(),
         }
         return render(request, 'main/AdminHomePage.html', context=data)
     if request.method == 'POST':

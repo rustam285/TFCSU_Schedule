@@ -52,9 +52,10 @@
                         Обновить дату вручную
                     </button>
                 </form>
-                <span class="ms-2">
+                <span class="ms-2 d-inline-block">
                     <strong>Последнее изменение расписания:</strong> {{ updated_at }}
                     <span class="text-muted">(обновляется автоматически при изменении занятий или кнопкой)</span>
+                    {% render_group_updated_at_list groups_by_form %}
                 </span>
             </div>
         </div>

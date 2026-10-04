@@ -1,89 +1,95 @@
 {% extends 'main/base.html'%}
 {% load static %}
 {% block title %}
-Импорт расписания
+Импорт расписания ({{ education_type_label }})
 {% endblock %}
 {% block content %}
-<h1>Импорт расписания очной формы обучения</h1>
+<h1>Импорт расписания очной формы обучения ({{ education_type_label }})</h1>
+<input type="hidden" id="education_type" value="{{ education_type }}">
+<input type="hidden" id="importSaveUrl" value="{% url 'import_schedule_save' %}">
 <div class="m-3">
-    <label for="ScheduleFile" class="form-label"><strong>Загрузите .xlsx файл расписания</strong></label>
+    <label for="ScheduleFile" class="form-label">
+        <strong>Выберите .xlsx файлы расписания (можно сразу несколько)</strong>
+    </label>
     <div class="input-group">
-        <input class="form-control" type="file" id="ScheduleFile">
-        <select id="education_type" name="education_type" class="form-control" style="max-width:100px">
-            <option value="higher_education" selected>ВО</option>
-            <option value="secondary_vocational_education">СПО</option>
-        </select>
-        <button class="btn btn-danger" type="button" id="button-addon" onclick="importSchedule()">Импортировать</button>
+        <input class="form-control" type="file" id="ScheduleFile" multiple accept=".xlsx">
+        <button class="btn btn-danger" type="button" id="button-addon" onclick="importSchedules()">Импортировать</button>
     </div>
 </div>
 <p class="alert alert-danger mt-2 mb-2" id="ft-import-upload-error" style="display: none">
 </p>
-{% if messages %}
-{% for message in messages %}
-<p class="alert alert-{{ message.tags }} mt-2 mb-2">
-    {{ message }}
-</p>
-{% endfor %}
-{% endif %}
-<div class="d-flex" style="flex-direction:row; justify-content: center; font-weight:bold">
-    <div>
-        <label for="importGroups">Расписание для групп: </label><select id="importGroups" class="form-control"></select>
+<div id="ft-import-summary"></div>
+<div class="d-flex flex-wrap" style="gap: 16px; align-items: flex-start;">
+    <div id="importEntriesPanel" style="min-width: 280px; max-width: 340px;">
+        <strong>Загруженные расписания:</strong>
+        <div id="importEntriesList" class="list-group mt-2"></div>
     </div>
-</div>
-<form method="POST" action="{% url 'import_schedule' %}" id="scheduleForm">
-    <input type="hidden" name="save_schedule" value="true">
-    <input type="hidden" id="hiddenImportGroups" name="needed_groups">
-    <div>
-        <button class="btn btn-danger" type="submit" name="load_result" value="1">Загрузить</button>
-    </div>
-    <div class="d-flex" style="flex-direction:row">
-        {% for week in week_numbers %}
-        <div class="container d-flex" style="flex-direction:column" id="{{ week }}_week_schedule">
-            <strong>
-                <div class="d-flex" style="flex-direction:row; justify-content: center;">
-                    {{ week }} неделя
-                </div>
-            </strong>
-            {% for day in week_days %}
-            <label for="{{ day }}_schedule">{{ day.1 }}</label>
-            <div class="container form-control mb-3" id="{{ day }}_schedule">
-                <div class="input-group">
-                    <span class="input-group-text">#</span>
-                    <span class="input-group-text px-3"> *</span>
-                    <input type="text" class="form-control" disabled readonly value="Дисциплина">
-                    <input type="text" class="form-control" disabled readonly value="Формат" style="max-width:250px">
-                    <input type="text" class="form-control" disabled readonly value="Преподаватель"
-                           style="max-width:200px">
-                    <input type="text" class="form-control" disabled readonly value="Ауд." style="max-width:60px">
-                </div>
-                {% for number in numbers %}
-                <div class="input-group">
-                    <span class="input-group-text">{{ number }}</span>
-                    <div class="input-group-text">
-                        <input id="{{ week }}_{{ day.0 }}_{{ number }}_is_special"
-                               name="{{ week }}_{{ day.0 }}_{{ number }}_is_special"
-                               type="checkbox" class="form-check-input mt-0">
+    <div style="flex: 1; min-width: 0;">
+        <button class="btn btn-danger" type="button" id="saveSchedulesBtn" onclick="saveSchedules()" disabled>
+            Загрузить
+        </button>
+        <span class="text-muted ms-2" style="font-size: 14px;">
+            Сохраняются только записи без ошибок; расписание групп перезаписывается
+        </span>
+        <div id="ft-import-cell-errors" class="mt-2 mb-2"></div>
+        <form id="scheduleForm">
+            <div class="d-flex" style="flex-direction:row">
+                {% for week in week_numbers %}
+                <div class="container d-flex" style="flex-direction:column" id="{{ week }}_week_schedule">
+                    <strong>
+                        <div class="d-flex" style="flex-direction:row; justify-content: center;">
+                            {{ week }} неделя
+                        </div>
+                    </strong>
+                    {% for day in week_days %}
+                    <label for="{{ day }}_schedule">{{ day.1 }}</label>
+                    <div class="container form-control mb-3" id="{{ day }}_schedule">
+                        <div class="input-group">
+                            <span class="input-group-text">#</span>
+                            <span class="input-group-text px-3"> *</span>
+                            <input type="text" class="form-control" disabled readonly value="Дисциплина">
+                            <input type="text" class="form-control" disabled readonly value="Формат" style="max-width:250px">
+                            <input type="text" class="form-control" disabled readonly value="Преподаватель"
+                                   style="max-width:200px">
+                            <input type="text" class="form-control" disabled readonly value="Ауд." style="max-width:60px">
+                        </div>
+                        {% for number in numbers %}
+                        <div class="input-group">
+                            <span class="input-group-text">{{ number }}</span>
+                            <div class="input-group-text">
+                                <input id="{{ week }}_{{ day.0 }}_{{ number }}_is_special"
+                                       name="{{ week }}_{{ day.0 }}_{{ number }}_is_special"
+                                       type="checkbox" class="form-check-input mt-0">
+                            </div>
+                            <textarea id="{{ week }}_{{ day.0 }}_{{ number }}_discipline"
+                                      name="{{ week }}_{{ day.0 }}_{{ number }}_discipline" class="form-control"
+                                      rows="1"></textarea>
+                            <input id="{{ week }}_{{ day.0 }}_{{ number }}_format"
+                                   name="{{ week }}_{{ day.0 }}_{{ number }}_format" type="text" class="form-control"
+                                   style="max-width:250px">
+                            <input id="{{ week }}_{{ day.0 }}_{{ number }}_teacher"
+                                   name="{{ week }}_{{ day.0 }}_{{ number }}_teacher" type="text" class="form-control"
+                                   style="max-width:200px">
+                            <input id="{{ week }}_{{ day.0 }}_{{ number }}_auditorium"
+                                   name="{{ week }}_{{ day.0 }}_{{ number }}_auditorium" type="text" class="form-control"
+                                   style="max-width:60px">
+                        </div>
+                        {% endfor %}
                     </div>
-                    <textarea id="{{ week }}_{{ day.0 }}_{{ number }}_discipline"
-                              name="{{ week }}_{{ day.0 }}_{{ number }}_discipline" class="form-control"
-                              rows="1"></textarea>
-                    <input id="{{ week }}_{{ day.0 }}_{{ number }}_format"
-                           name="{{ week }}_{{ day.0 }}_{{ number }}_format" type="text" class="form-control"
-                           style="max-width:250px">
-                    <input id="{{ week }}_{{ day.0 }}_{{ number }}_teacher"
-                           name="{{ week }}_{{ day.0 }}_{{ number }}_teacher" type="text" class="form-control"
-                           style="max-width:200px">
-                    <input id="{{ week }}_{{ day.0 }}_{{ number }}_auditorium"
-                           name="{{ week }}_{{ day.0 }}_{{ number }}_auditorium" type="text" class="form-control"
-                           style="max-width:60px">
+                    {% endfor %}
                 </div>
                 {% endfor %}
             </div>
-            {% endfor %}
-        </div>
-        {% endfor %}
+        </form>
     </div>
-</form>
+</div>
+
+<style>
+    /* ячейки с ошибками валидации */
+    #scheduleForm .input-group.cell-error { outline: 2px solid #dc3545; outline-offset: -2px; border-radius: 4px; }
+    /* активная запись в списке слева */
+    #importEntriesList .list-group-item.entry-active { background-color: #f8d7da; font-weight: bold; }
+</style>
 
 <script src="{% static 'js/importSchedule.js' %}"></script>
 {% endblock %}

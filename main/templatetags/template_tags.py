@@ -10,6 +10,11 @@ def render_search_form(query='', placeholder='Поиск...'):
     return {'query': query, 'placeholder': placeholder}
 
 
+@register.inclusion_tag('components/group_updated_at_list.html')
+def render_group_updated_at_list(groups_by_form):
+    return {'groups_by_form': groups_by_form}
+
+
 @register.inclusion_tag('components/pagination.html')
 def render_pagination(page_obj, query=''):
     return {'page_obj': page_obj, 'query': query}

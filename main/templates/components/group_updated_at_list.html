@@ -1,0 +1,44 @@
+{% load static %}
+<div class="mt-1">
+    <a data-bs-toggle="collapse" href="#groupsUpdatedCollapse" role="button" aria-expanded="false"
+       aria-controls="groupsUpdatedCollapse" style="color:#380216; font-size: 15px;">
+        Изменения по группам ▾
+    </a>
+    <div class="collapse" id="groupsUpdatedCollapse">
+        <div class="card card-body shadow-sm" style="max-width: 560px; max-height: 340px; overflow-y: auto;">
+            <input type="text" class="form-control form-control-sm mb-2" id="groupsUpdatedFilter"
+                   placeholder="Фильтр по названию группы..." oninput="filterGroupsUpdatedList()">
+            {% for form in groups_by_form %}
+                <div class="fw-bold border-bottom groups-updated-form-label" style="color:#6f0724;">
+                    {{ form.form_label }}
+                </div>
+                {% for group in form.groups %}
+                    <div class="d-flex justify-content-between groups-updated-row" style="padding: 1px 4px;">
+                        <span class="me-3">{{ group.title }}</span>
+                        <span class="text-muted">{{ group.updated_at_display }}</span>
+                    </div>
+                {% endfor %}
+            {% endfor %}
+        </div>
+    </div>
+</div>
+<script>
+    function filterGroupsUpdatedList() {
+        const query = document.getElementById('groupsUpdatedFilter').value.trim().toLowerCase();
+        document.querySelectorAll('#groupsUpdatedCollapse .groups-updated-row').forEach(function (row) {
+            row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
+        });
+        document.querySelectorAll('#groupsUpdatedCollapse .groups-updated-form-label').forEach(function (label) {
+            let visible = false;
+            let node = label.nextElementSibling;
+            while (node && !node.classList.contains('groups-updated-form-label')) {
+                if (node.classList.contains('groups-updated-row') && node.style.display !== 'none') {
+                    visible = true;
+                    break;
+                }
+                node = node.nextElementSibling;
+            }
+            label.style.display = visible ? '' : 'none';
+        });
+    }
+</script>

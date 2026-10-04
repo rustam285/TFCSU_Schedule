@@ -1,4 +1,5 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 
 from .views import schedule_views, auth_views, part_time_schedule_views, admin_views, guests_views, \
@@ -62,7 +63,16 @@ urlpatterns = [
     path('admin/add/full_time_schedule/', schedule_views.render_add_schedule_page, name='schedule'),  # Добавить
     # Редактировать
     path('admin/edit/full_time_schedule/', schedule_views.render_edit_schedule_page, name='edit_schedule'),
-    path('admin/import/full_time_schedule/', schedule_views.render_import_schedule_page,
+    # Импорт очного расписания: отдельные страницы для файлов ВО и СПО
+    path('admin/import/full_time_schedule/vo/', schedule_views.render_import_schedule_page_vo,
+         name='import_schedule_vo'),
+    path('admin/import/full_time_schedule/spo/', schedule_views.render_import_schedule_page_spo,
+         name='import_schedule_spo'),
+    # Сохранение результатов мультифайлового импорта (JSON, вызывается со страницы импорта)
+    path('admin/import/full_time_schedule/save/', schedule_views.save_imported_full_time_schedules,
+         name='import_schedule_save'),
+    # Старый адрес очного импорта ведёт на страницу ВО
+    path('admin/import/full_time_schedule/', RedirectView.as_view(pattern_name='import_schedule_vo'),
          name='import_schedule'),  # Импорт
     # Удалить
     path('admin/delete/full_time_schedule/', schedule_views.render_delete_schedule_page, name='delete_schedule'),

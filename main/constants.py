@@ -7,7 +7,8 @@ view_buttons = [
 ]
 
 ftf_buttons = [
-    ('Импортировать', reverse_lazy('import_schedule'), False)
+    ('Импортировать (ВО)', reverse_lazy('import_schedule_vo'), False),
+    ('Импортировать (СПО)', reverse_lazy('import_schedule_spo'), False)
 ]
 
 ptf_buttons = [
