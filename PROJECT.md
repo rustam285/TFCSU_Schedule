@@ -12,8 +12,7 @@
 - **Стек сайта:** Django 5.1 + SQLite (`db.sqlite3`), Bootstrap 5 + jQuery + select2 (все библиотеки локально в `main/static`), waitress на проде, whitenoise для статики.
 - **Стек парсера:** отдельное FastAPI-приложение в `schedule-parser/` (свой venv не имеет, ставится системным pip; см. раздел 9).
 - **Пользователи:** стандартная модель `django.contrib.auth.models.User`, ролей/групп нет. Гость видит страницы просмотра; залогиненный — админ-панель (`/admin/...`), уведомления и экспорт.
-- **Это НЕ git-репозиторий** — историю изменений не спросить у git, ориентируйся на этот файл, README.md, DEPLOY.md и папки «для копирования N».
-- Рабочая ОС — Windows (сервер и локальная машина). Пути с пробелами/кириллицей — всегда в кавычках. Оболочка может быть cmd или Git Bash — проверяй синтаксис.
+- **Git-репозиторий:** https://github.com/rustam285/TFCSU_Schedule (ветка main). Коммить изменения поэтапно; `db.sqlite3`, `backups/`, `.venv/`, `staticfiles/` в `.gitignore` (публичный репозиторий — базу и личные данные не публиковать). Рабочая ОС — Windows (сервер и локальная машина). Пути с пробелами/кириллицей — всегда в кавычках. Оболочка может быть cmd или Git Bash — проверяй синтаксис.
 
 ## 2. Запуск
 
@@ -111,7 +110,7 @@ main/
 |---|---|
 | `guests_views.py` | гостевые страницы: главная, расписание по группам/преподавателям/аудиториям (диапазон дат) |
 | `admin_views.py` | главная админки; **просмотр по группе** (`render_schedule_by_group_page` + `return_fields_for_choice`/`add_table_data` — чекбоксы дней/недель); просмотр по преподавателям/аудиториям |
-| `schedule_views.py` | добавление/изменение/удаление/импорт расписания очной формы |
+| `schedule_views.py` | добавление/изменение/удаление расписания очной формы; **импорт ВО/СПО** — две страницы (`render_import_schedule_page_vo/spo`) + JSON-эндпоинт `save_imported_full_time_schedules` (мультифайловый импорт, см. 8.4) |
 | `part_time_schedule_views.py`, `mixed_schedule_views.py` | то же для заочной и очно-заочной |
 | `teachers_views.py`, `group_views.py`, `faculty_view.py`, `auditory_views.py`, `discipline_views.py` | CRUD справочников (поиск `q`, пагинация 25/стр) |
 | `teacher_rule_views.py` | правила отображения дисциплин (эталон «страницы настроек») |
@@ -158,7 +157,8 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 Админка (`/admin/...`, закрыты middleware): `home`, CRUD-страницы справочников
 (`teachers/add_teachers/...`, `groups`, `faculty`, `auditory`, `discipline`),
 расписания (`schedule`, `edit_schedule`, `delete_schedule`, `for_edit_lesson`,
-`import_schedule`, `add_part_time_schedule`, `edit_part_time_lesson`, `import_part_time_schedule`,
+`import_schedule_vo`, `import_schedule_spo`, `import_schedule_save` (старый `import_schedule` — редирект на ВО),
+`add_part_time_schedule`, `edit_part_time_lesson`, `import_part_time_schedule`,
 `delete_part_time_schedule`, `add_mixed_schedule`, `edit_mixed_schedule`, `edit_mixed_lesson`,
 `import_mixed_schedule`, `delete_mixed_schedule`), просмотр (`check_schedule_group`,
 `check_schedule_teachers`, `check_schedule_auditoriums`), `teacher_rules`, `backups`/`download_backup`,
@@ -216,6 +216,28 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 скрытое поле `form_submitted` отличает «ещё не отправляли» от «отправили пустым» (пустое →
 сообщение об ошибке). Заочные группы — диапазон дат. Кнопка «Получить PDF» → экспорт группы.
 
+### 8.4. Даты изменений по группам + мультифайловый импорт ВО/СПО («для копирования 6»)
+- **Даты по группам:** `Group.updated_at` (миграция 0028 с бэкфиллом глобальной датой —
+  истории нет). Сигнал `touch_updated_at` (post_save/post_delete Lesson) обновляет и
+  глобальную дату (`SiteSetting`), и дату группы занятия (`util.touch_group_updated_at`).
+  Список групп с датами — компонент `group_updated_at_list.html` (inclusion-тег
+  `render_group_updated_at_list`) на гостевой и админской главных: Bootstrap collapse,
+  секции по формам обучения, текстовый фильтр.
+- **Импорт ВО/СПО:** две страницы `admin/import/full_time_schedule/{vo,spo}/`
+  (`render_import_schedule_page_vo/spo`, общий шаблон, тип зашит в hidden input),
+  старый URL редиректит на ВО. Файлы парсятся по очереди (JS `importSchedule.js`,
+  URL парсера — от `window.location.hostname`:8001), записи хранятся в памяти страницы;
+  запись = набор групп + сетка (ключи ячеек `{неделя}_{день}_{№}`); одинаковый набор
+  групп → запись перезаписывается. Кнопка «Загрузить» → JSON POST на
+  `admin/import/full_time_schedule/save/` (`save_imported_full_time_schedules`):
+  записи валидируются независимо, сохраняются только безошибочные (один
+  `create_backup`, `transaction.atomic` на запись, удаление старых Lesson групп),
+  ошибочные возвращаются с ошибками (`_group` / по ячейкам) и подсвечиваются
+  красным в списке и в сетке. Мануальные правки в сетке не теряются при
+  переключении записей (collectGridToCells).
+- **Парсер:** `PARSER_HOST`/`PARSER_PORT` из env (дефолты — серверные 192.168.2.250:8001);
+  локально запускать с `PARSER_HOST=127.0.0.1`.
+
 ## 9. schedule-parser (отдельный сервис)
 
 - FastAPI + uvicorn, порт 8001: парсит xlsx-файлы расписаний (очная — `he_parser_service`,
@@ -249,13 +271,15 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 | 3 | Экспорт расписания (xlsx/docx/pdf, сетка семестра) + библиотеки python-docx, reportlab | — |
 | 4 | Уведомления (+модель, миграция `0027_notificationsubscription`, migrate обязателен) | 3 |
 | 5 | Чекбоксы дней/недель и «Получить PDF» на `/admin/schedule/group/`, «Правила предметов» в «Сервисе» | 3, 4 |
+| 6 | Даты изменений по группам (Group.updated_at + миграция 0028), страницы импорта ВО/СПО, мультифайловый импорт (JSON-эндпоинт `.../save/`), env для host/port парсера | 3, 4, 5; migrate и collectstatic обязательны, перезапустить сайт и парсер |
 
 При новых изменениях — создавай следующую папку с тем же принципом
 (файлы с сохранением структуры + ИНСТРУКЦИЯ.md + отметить, нужен ли pip/migrate/collectstatic).
 
 ## 12. Подводные камни (важно!)
 
-- **Не git** — перед изменениями нечем «посмотреть diff»; аккуратнее с правками, ориентируйся на этот файл.
+- **Не git** — перед изменениями нечем «посмотреть diff»; аккуратнее с правками, ориентируйся на этот файл. *(Обновлено: с 04.10.2026 проект в git — https://github.com/rustam285/TFCSU_Schedule; diff есть, но правило «файлы живут со всеми фичами папок N» остаётся.)*
+- **Whitenoise кэширует статику в памяти процесса**: после изменения файлов в `main/static` нужен `collectstatic` **и перезапуск сайта**, иначе процесс отдаёт старую версию (с обрезанным Content-Length — JS «ломается» молча).
 - Обновление затирает файлы целиком: правя файл, помни, что в нём уже живут фичи из всех папок N.
 - reportlab 5: `longTableOptimize=1` по умолчанию — при отрисовке таблицы целиком после
   `wrap()` с ограниченной высотой падает KeyError в `_spanRects` (в `export_service` обойдено:
@@ -278,3 +302,9 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
    фиксы: значения радио-режимов, склейка дисциплин, авто-переключение режима.
 4. «для копирования 5»: мультивыбор дней/недель чекбоксами + «Все дни»/«Все недели»,
    кнопка «Получить PDF» на просмотре по группе, «Правила предметов» → карточка «Сервис».
+5. Проект опубликован в git (github.com/rustam285/TFCSU_Schedule; db.sqlite3 и backups
+   в .gitignore — публичный репозиторий).
+6. «для копирования 6»: даты изменений по группам на главных страницах; раздельные
+   страницы импорта ВО/СПО; мультифайловый импорт (список записей, перезапись
+   одинаковых групп, частичное сохранение, красная подсветка ошибок); URL парсера
+   от текущего хоста; env для host/port парсера.

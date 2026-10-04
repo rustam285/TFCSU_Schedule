@@ -1,0 +1,65 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Расписание ТФ ЧелГУ
+{% endblock %}
+{% block content %}
+<div style="flex:1; display:flex; align-items:center; justify-content:center; flex-direction:column;">
+    <h1>Составление расписания</h1>
+    <div style="display:flex; flex-direction:column; gap:20px; max-width: 860px;">
+
+        <div class="bg-light border border-dark shadow rounded p-3">
+            <h5 class="mb-3">Расписание</h5>
+            <div style="display:flex; flex-wrap: wrap; gap:10px; align-items:center;">
+                <a href="{% url 'schedule' %}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">Добавить занятие</a>
+                {% render_right_dropdown "Изменить / просмотреть" dropdown_items=view_buttons %}
+                {% render_right_dropdown "Импорт: очная форма" dropdown_items=ftf_buttons %}
+                {% render_right_dropdown "Импорт: очно-заочная" dropdown_items=mf_buttons %}
+                {% render_right_dropdown "Заочная форма" dropdown_items=ptf_buttons %}
+            </div>
+        </div>
+
+        <div class="bg-light border border-dark shadow rounded p-3">
+            <h5 class="mb-3">Просмотр расписания</h5>
+            <div style="display:flex; flex-wrap: wrap; gap:10px;">
+                {% for label, url, disabled in admin_check_schedule_buttons %}
+                <a href="{{ url }}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">{{ label }}</a>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="bg-light border border-dark shadow rounded p-3">
+            <h5 class="mb-3">Справочники</h5>
+            <div style="display:flex; flex-wrap: wrap; gap:10px;">
+                <a href="{% url 'teachers' %}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">Преподаватели</a>
+                <a href="{% url 'groups' %}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">Группы</a>
+                <a href="{% url 'faculty' %}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">Направления</a>
+                <a href="{% url 'auditory' %}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">Аудитории</a>
+                <a href="{% url 'discipline' %}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">Дисциплины</a>
+            </div>
+        </div>
+
+        <div class="bg-light border border-dark shadow rounded p-3">
+            <h5 class="mb-3">Сервис</h5>
+            <div style="display:flex; flex-wrap: wrap; gap:10px; align-items:center;">
+                <a href="{% url 'backups' %}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">Резервные копии</a>
+                <a href="{% url 'teacher_rules' %}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">Правила предметов</a>
+                <a href="{% url 'notification_settings' %}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">Уведомления</a>
+                <a href="{% url 'export_excel' %}" class="btn btn-danger" style="font-size:16px; padding: 8px 16px">Скачать базу в Excel</a>
+                <form method="post" style="display:inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger" style="font-size:16px; padding: 8px 16px">
+                        Обновить дату вручную
+                    </button>
+                </form>
+                <span class="ms-2 d-inline-block">
+                    <strong>Последнее изменение расписания:</strong> {{ updated_at }}
+                    <span class="text-muted">(обновляется автоматически при изменении занятий или кнопкой)</span>
+                    {% render_group_updated_at_list groups_by_form %}
+                </span>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

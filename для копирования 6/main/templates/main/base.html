@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %} {% endblock %}</title>
+        <!-- подключение js библиотеки -->
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+    <!-- Подключение CSS основной библиотеки -->
+    <link href="{% static 'css/index.css' %}" rel="stylesheet" />
+    <!-- Подключение CSS bootstrap библиотеки -->
+    <link href="{% static 'css/bootstrap.min.css' %}" rel="stylesheet" />
+    <!-- Подключение CSS кастомной библиотеки -->
+    <link href="{% static 'css/csu.css' %}" rel="stylesheet" />
+    <link rel="shortcut icon" type="image/png" href="{% static 'Images/favicon.ico' %}">
+    <!-- Подключение CSS select 2 библиотеки -->
+    <link href="{% static 'css/select2.min.css' %}" rel="stylesheet" />
+    <!-- Подключение CSS UI библиотеки -->
+    <link href="{% static 'css/jquery-ui.css' %}" rel="stylesheet"/>
+        <!-- Подключите jQuery библиотеки -->
+    <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+        <!-- Подключите JS библиотеки для Select2 -->
+    <script src="{% static 'js/select2.min.js' %}"></script>
+    <!-- Подключение JS библиотеки для UI -->
+    <script src="{% static 'js/jquery-ui.js' %}"></script>
+</head>
+<body>
+<header>
+    <div class="csu shadow-lg d-flex flex-column flex-md-row align-items-center py-1 border-bottom px-3">
+    {% if user.is_authenticated %}
+    <a href="{% url 'home' %}" class="btn btn-outline-light">
+        Расписание занятий Троицкого филиала ЧелГУ
+    </a>
+    {% else %}
+    <a href="{% url 'guests' %}" class="btn btn-outline-light">
+        Расписание занятий Троицкого филиала ЧелГУ
+    </a>
+    {% endif %}
+    {% if request.path != '/login/'%}
+    {% if not user.is_authenticated %}
+      <nav class="d-inline-flex mt-2 mt-md-0 ms-md-auto">
+        <a class="btn btn-outline-light" href="{% url 'login' %}">Войти</a>
+      </nav>
+    {% else %}
+    <nav class="d-inline-flex mt-2 mt-md-0 ms-md-auto" style="align-items:center; gap:10px;">
+    <button id="notifications-btn" type="button" title="Уведомления"
+            style="position:relative; border:none; background:transparent; font-size:20px; line-height:1; cursor:pointer; padding: 2px;">
+        &#128276;
+        <span id="notifications-badge" class="badge bg-danger"
+              style="position:absolute; top:-8px; right:-12px; display:none; font-size:11px;"></span>
+    </button>
+    <form method="post" action="{% url 'logout' %}">
+        {% csrf_token %}
+        <button class="btn btn-outline-danger" type="submit">Выйти</button>
+    </form>
+    </nav>
+    {% endif %}
+    {% endif %}
+</div>
+</header>
+{% if user.is_authenticated %}
+<div style="background-color: #f8f9fa; border-bottom: 1px solid #dee2e6; padding: 4px 10px; display:flex; align-items:center; gap:10px;">
+    <button id="admin-menu-btn" type="button" title="Открыть меню"
+            style="width: 40px; height: 34px; border: 1px solid #380216; border-radius: 6px; background: #ffffff; display:flex; flex-direction:column; justify-content:center; align-items:center; gap: 4px; cursor: pointer;">
+        <span style="display:block; width:20px; border-top: 2.5px solid #380216;"></span>
+        <span style="display:block; width:20px; border-top: 2.5px solid #380216;"></span>
+        <span style="display:block; width:20px; border-top: 2.5px solid #380216;"></span>
+    </button>
+    <span class="text-muted">Меню администратора</span>
+</div>
+
+<div id="admin-sidebar-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.35); z-index:1040;"></div>
+
+<aside id="admin-sidebar"
+       style="position:fixed; top:0; left:0; bottom:0; width:280px; background:#f8f9fa; border-right: 2px solid #380216; z-index:1050; overflow-y:auto; padding: 14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+        <a href="{% url 'home' %}" class="fw-bold text-decoration-none" style="color:#380216; font-size:18px;">Панель</a>
+        <button id="admin-sidebar-close" type="button" title="Закрыть"
+                style="border:none; background:transparent; font-size:22px; line-height:1; color:#380216; cursor:pointer;">&times;</button>
+    </div>
+    <hr>
+
+    <div class="text-muted" style="font-size:13px; text-transform:uppercase; margin: 10px 0 4px;">Расписание</div>
+    <a href="{% url 'schedule' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Добавить занятие</a>
+    <a href="{% url 'edit_schedule' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Изменить (очное)</a>
+    <a href="{% url 'delete_schedule' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Постоянные</a>
+    <a href="{% url 'delete_part_time_schedule' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Временные</a>
+
+    <div class="text-muted" style="font-size:13px; text-transform:uppercase; margin: 12px 0 4px;">Просмотр</div>
+    <a href="{% url 'guests' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Общий просмотр (главная)</a>
+    <a href="{% url 'check_schedule_group' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">По группам</a>
+    <a href="{% url 'check_schedule_teachers' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">По преподавателям</a>
+    <a href="{% url 'check_schedule_auditoriums' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">По аудиториям</a>
+
+    <div class="text-muted" style="font-size:13px; text-transform:uppercase; margin: 12px 0 4px;">Импорт</div>
+    <a href="{% url 'import_schedule_vo' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Очная форма (ВО)</a>
+    <a href="{% url 'import_schedule_spo' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Очная форма (СПО)</a>
+    <a href="{% url 'import_part_time_schedule' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Заочная форма</a>
+    <a href="{% url 'import_mixed_schedule' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Очно-заочная форма</a>
+
+    <div class="text-muted" style="font-size:13px; text-transform:uppercase; margin: 12px 0 4px;">Справочники</div>
+    <a href="{% url 'teachers' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Преподаватели</a>
+    <a href="{% url 'groups' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Группы</a>
+    <a href="{% url 'faculty' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Направления</a>
+    <a href="{% url 'auditory' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Аудитории</a>
+    <a href="{% url 'discipline' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Дисциплины</a>
+
+    <div class="text-muted" style="font-size:13px; text-transform:uppercase; margin: 12px 0 4px;">Сервис</div>
+    <a href="{% url 'teacher_rules' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Правила предметов</a>
+    <a href="{% url 'notification_settings' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Уведомления</a>
+    <a href="{% url 'backups' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Резервные копии</a>
+    <a href="{% url 'export_excel' %}" class="d-block text-decoration-none sidebar-link" style="color:#380216; padding:5px 8px; border-radius:6px;">Скачать базу в Excel</a>
+</aside>
+
+<style>
+    /* сдвиг панели задаётся здесь, а не инлайн-стилем: инлайн перекрывал бы класс .open */
+    #admin-sidebar { transform: translateX(-100%); transition: transform 0.25s ease; }
+    #admin-sidebar.open { transform: translateX(0); }
+    .sidebar-link:hover { background-color: #e9ecef; }
+</style>
+<script>
+    (function () {
+        const btn = document.getElementById('admin-menu-btn');
+        const sidebar = document.getElementById('admin-sidebar');
+        const overlay = document.getElementById('admin-sidebar-overlay');
+        const closeBtn = document.getElementById('admin-sidebar-close');
+        if (!btn || !sidebar) return;
+
+        function openSidebar() {
+            closeNotifications(); // шторка уведомлений и меню не открыты одновременно
+            sidebar.classList.add('open');
+            overlay.style.display = 'block';
+        }
+
+        function closeSidebar() {
+            sidebar.classList.remove('open');
+            overlay.style.display = 'none';
+        }
+
+        btn.addEventListener('click', openSidebar);
+        closeBtn.addEventListener('click', closeSidebar);
+        overlay.addEventListener('click', closeSidebar);
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closeSidebar();
+        });
+        sidebar.querySelectorAll('a').forEach(function (a) {
+            a.addEventListener('click', closeSidebar);
+        });
+    })();
+
+    /* ---- шторка уведомлений справа ---- */
+    function closeNotifications() {
+        const panel = document.getElementById('notifications-panel');
+        const overlay = document.getElementById('notifications-overlay');
+        if (panel) panel.classList.remove('open');
+        if (overlay) overlay.style.display = 'none';
+    }
+    function closeAdminSidebar() {
+        const sidebar = document.getElementById('admin-sidebar');
+        const overlay = document.getElementById('admin-sidebar-overlay');
+        if (sidebar) sidebar.classList.remove('open');
+        if (overlay) overlay.style.display = 'none';
+    }
+</script>
+
+<div id="notifications-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.35); z-index:1040;"></div>
+
+<aside id="notifications-panel"
+       style="position:fixed; top:0; right:0; bottom:0; width:340px; background:#f8f9fa; border-left: 2px solid #380216; z-index:1050; overflow-y:auto; padding: 14px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px;">
+        <span class="fw-bold" style="color:#380216; font-size:18px;">Уведомления</span>
+        <button id="notifications-close" type="button" title="Закрыть"
+                style="border:none; background:transparent; font-size:22px; line-height:1; color:#380216; cursor:pointer;">&times;</button>
+    </div>
+    <hr>
+    <p class="text-muted" style="font-size:12px; margin-bottom:10px;">
+        Пары на текущую неделю (с сегодня до воскресенья). Уведомления показываются только при их наличии.
+        <a href="{% url 'notification_settings' %}" style="color:#380216;">Настроить</a>
+    </p>
+    <div id="notifications-content">
+        <p class="text-muted">Загрузка...</p>
+    </div>
+</aside>
+
+<style>
+    #notifications-panel { transform: translateX(100%); transition: transform 0.25s ease; }
+    #notifications-panel.open { transform: translateX(0); }
+    .notif-date { font-weight: bold; color: #380216; margin: 12px 0 6px; }
+    .notif-entry { background: #ffffff; border: 1px solid #dee2e6; border-radius: 6px; padding: 8px 10px; margin-bottom: 8px; }
+    .notif-name { font-weight: 600; margin-bottom: 4px; }
+    .notif-lesson { font-size: 13px; margin: 3px 0 0; }
+</style>
+<script>
+    (function () {
+        const btn = document.getElementById('notifications-btn');
+        const panel = document.getElementById('notifications-panel');
+        const overlay = document.getElementById('notifications-overlay');
+        const closeBtn = document.getElementById('notifications-close');
+        const content = document.getElementById('notifications-content');
+        const badge = document.getElementById('notifications-badge');
+        if (!btn || !panel) return;
+        const dataUrl = '{% url "notifications_data" %}';
+        const settingsUrl = '{% url "notification_settings" %}';
+
+        function escapeHtml(value) {
+            const div = document.createElement('div');
+            div.textContent = value == null ? '' : String(value);
+            return div.innerHTML;
+        }
+
+        function renderLessons(entry) {
+            return entry.lessons.map(function (lesson) {
+                const place = entry.kind === 'teacher'
+                    ? 'ауд. ' + lesson.auditorium : 'гр. ' + lesson.group;
+                const teacher = (entry.kind === 'auditorium' && lesson.teacher)
+                    ? ', ' + lesson.teacher : '';
+                return '<p class="notif-lesson mb-0"><strong>'
+                    + escapeHtml(lesson.number + ' пара, ' + lesson.time) + '</strong> — '
+                    + escapeHtml(lesson.label) + escapeHtml(teacher) + ', ' + escapeHtml(place) + '</p>';
+            }).join('');
+        }
+
+        function render(data) {
+            if (data.count > 0) {
+                badge.textContent = data.count;
+                badge.style.display = 'inline-block';
+            } else {
+                badge.style.display = 'none';
+            }
+            if (!data.groups.length) {
+                content.innerHTML = '<p class="text-muted">На эту неделю уведомлений нет.</p>'
+                    + '<a href="' + settingsUrl + '" class="btn btn-sm btn-outline-danger">Настроить уведомления</a>';
+                return;
+            }
+            content.innerHTML = data.groups.map(function (group) {
+                const entries = group.entries.map(function (entry) {
+                    const icon = entry.kind === 'teacher' ? 'Преподаватель' : 'Аудитория';
+                    const extra = entry.extra ? ', ' + entry.extra : '';
+                    return '<div class="notif-entry"><div class="notif-name">' + icon + ': '
+                        + escapeHtml(entry.name + extra) + '</div>' + renderLessons(entry) + '</div>';
+                }).join('');
+                return '<div class="notif-date">' + escapeHtml(group.title) + '</div>' + entries;
+            }).join('');
+        }
+
+        function load() {
+            content.innerHTML = '<p class="text-muted">Загрузка...</p>';
+            fetch(dataUrl).then(function (response) {
+                if (!response.ok) throw new Error();
+                return response.json();
+            }).then(render).catch(function () {
+                content.innerHTML = '<p class="alert alert-danger py-2 mb-0">Не удалось загрузить уведомления</p>';
+            });
+        }
+
+        function openPanel() {
+            closeAdminSidebar(); // меню администратора и шторка не открыты одновременно
+            panel.classList.add('open');
+            overlay.style.display = 'block';
+            load();
+        }
+
+        function closePanel() {
+            panel.classList.remove('open');
+            overlay.style.display = 'none';
+        }
+
+        btn.addEventListener('click', openPanel);
+        closeBtn.addEventListener('click', closePanel);
+        overlay.addEventListener('click', closePanel);
+        document.addEventListener('keydown', function (e) {
+            if (e.key === 'Escape') closePanel();
+        });
+
+        load(); // счётчик на бейдже — сразу при загрузке страницы
+    })();
+</script>
+{% endif %}
+<div id="bg" style="min-height: 100vh;  display: flex;
+flex-direction: column; margin:0;
+padding-bottom:100px;
+background-repeat: repeat; background-size: full; background-image: url('{% static 'Images/pagenumber.png' %}')">
+<div class="container" style="display:flex; flex-direction:column; flex:1;">
+    {% block content %} {% endblock %}
+</div>
+</div>
+<script>
+    $(document).ready(function() {
+        $('.select2').select2();
+
+        $(document).on('select2:open', (e) => {
+                search = document.querySelectorAll('.select2-search__field');
+                search[search.length-1].focus();
+        });
+    });
+</script>
+<footer class="bd-footer" style="background-color:#212529; color: #ffffff; margin:0px; padding:50px">
+    <div class="row">
+        <div class="col-lg-3 mb-3">
+            <h5>Расписание занятий <br>Троицкий филиал ЧелГУ</h5>
+            Эл.почта: <a href="mailto:tf_chelgu@mail.ru">tf_chelgu@mail.ru</a><br>
+<!--            Telegram-бот: <a href="https://t.me/TFChelGU_bot">@TFChelGU_bot</a>-->
+        </div>
+        <div class="col-6 col-lg-2 offset-lg-1 mb-3">
+            <h5>Расписание</h5>
+            <h6><a href="{% url 'guests_check_groups' %}">По группам</a></h6>
+            <h6><a href="{% url 'guests_check_preps' %}">По преподавателям</a></h6>
+            <h6><a href="{% url 'guests_check_auds' %}">По аудиториям</a></h6>
+        </div>
+    </div>
+</footer>
+</body>
+</html>
