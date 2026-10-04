@@ -15,6 +15,25 @@ def get_error_messages(e: Exception) -> list[str]:
     return [str(e)]
 
 
+def normalize_search_query(value: str) -> str:
+    """Нормализация строки для поиска: без учёта регистра и без разницы е/ё.
+
+    «Еремкин» и «Ерёмкин» дают одинаковый результат."""
+    return (value or '').casefold().replace('ё', 'е')
+
+
+def filter_by_query(objects: list, query: str, key) -> list:
+    """Фильтрация списка по запросу без учёта регистра и разницы е/ё.
+
+    SQLite (LIKE) не умеет этого для кириллицы, поэтому фильтруем в Python —
+    справочники маленькие, вывозить на страницу всё равно приходится.
+    key — функция, возвращающая строку для поиска у объекта (lambda t: t.name)."""
+    q = normalize_search_query(query)
+    if not q:
+        return objects
+    return [obj for obj in objects if q in normalize_search_query(key(obj))]
+
+
 def convert_string_to_date(date):
     return datetime.datetime.strptime(date, "%Y-%m-%d")
 

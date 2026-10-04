@@ -7,7 +7,7 @@
     <div class="collapse" id="groupsUpdatedCollapse">
         <div class="card card-body shadow-sm" style="max-width: 560px; max-height: 340px; overflow-y: auto;">
             <input type="text" class="form-control form-control-sm mb-2" id="groupsUpdatedFilter"
-                   placeholder="Фильтр по названию группы..." oninput="filterGroupsUpdatedList()">
+                   placeholder="Фильтр по названию группы..." autocomplete="off">
             {% for form in groups_by_form %}
                 <div class="fw-bold border-bottom groups-updated-form-label" style="color:#6f0724;">
                     {{ form.form_label }}
@@ -24,7 +24,9 @@
 </div>
 <script>
     function filterGroupsUpdatedList() {
-        const query = document.getElementById('groupsUpdatedFilter').value.trim().toLowerCase();
+        const input = document.getElementById('groupsUpdatedFilter');
+        if (!input) return;
+        const query = input.value.trim().toLowerCase();
         document.querySelectorAll('#groupsUpdatedCollapse .groups-updated-row').forEach(function (row) {
             row.style.display = row.textContent.toLowerCase().includes(query) ? '' : 'none';
         });
@@ -41,4 +43,14 @@
             label.style.display = visible ? '' : 'none';
         });
     }
+
+    // привязка через addEventListener (надёжнее inline-oninput: срабатывает в т.ч.
+    // при автозаполнении поля браузером) + начальная фильтрация, если поле не пусто
+    (function () {
+        const input = document.getElementById('groupsUpdatedFilter');
+        if (!input) return;
+        input.addEventListener('input', filterGroupsUpdatedList);
+        input.addEventListener('change', filterGroupsUpdatedList);
+        if (input.value) filterGroupsUpdatedList();
+    })();
 </script>
