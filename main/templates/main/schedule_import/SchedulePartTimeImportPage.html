@@ -1,0 +1,47 @@
+{% extends 'main/base.html'%}
+{% load static %}
+{% block title %}
+Импорт расписания
+{% endblock %}
+{% block content %}
+<h1>Импорт расписания заочной формы обучения</h1>
+<div class="m-3">
+    <label for="ScheduleFile" class="form-label"><strong>Загрузите .xlsx файл расписания</strong></label>
+    <div class="input-group">
+        <input class="form-control" type="file" id="ScheduleFile">
+        <button class="btn btn-danger" type="button" id="button-addon" onclick="importPartTimeSchedule()">
+            Импортировать
+        </button>
+    </div>
+</div>
+<p class="alert alert-danger mt-2 mb-2" id="pt-import-upload-error" style="display: none">
+</p>
+{% if messages %}
+{% for message in messages %}
+<p class="alert alert-{{ message.tags }} mt-2 mb-2">
+    {{ message }}
+</p>
+{% endfor %}
+{% endif %}
+<div class="d-flex" style="flex-direction:row; justify-content: center; font-weight:bold; gap:5px">
+    <label for="importGroup">Расписание для группы:</label>
+    <div id="importGroup"></div>
+</div>
+<form method="POST" action="{% url 'import_part_time_schedule' %}" id="scheduleForm">
+    <input type="hidden" id="hiddenImportGroup" name="needed_group">
+    <div class="pt-2 pb-2">
+        <button class="btn btn-danger" type="submit">Загрузить</button>
+    </div>
+    <div class="input-group">
+        <span class="input-group-text" style="min-width:100px">Дата</span>
+        <span class="input-group-text">№</span>
+        <span class="input-group-text px-3"> *</span>
+        <input type="text" class="form-control" disabled readonly value="Дисциплина">
+        <input type="text" class="form-control" disabled readonly value="Формат" style="max-width:250px">
+        <input type="text" class="form-control" disabled readonly value="Преподаватель" style="max-width:200px">
+        <input type="text" class="form-control" disabled readonly value="Ауд." style="max-width:60px">
+    </div>
+    <div id="schedule-container"></div>
+</form>
+<script src="{% static 'js/importPartTimeSchedule.js' %}"></script>
+{% endblock %}

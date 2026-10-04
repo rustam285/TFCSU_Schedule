@@ -1,0 +1,79 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Редактирование аудитории
+{% endblock %}
+{% block content %}
+<div>
+    <h1>Изменить аудиторию</h1>
+    <div style="width:350px;">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-2">
+                <label>Выберите аудиторию:</label>
+                <select class="form-control form-control-sm select2" id="auditory-input" name="id">
+                    <option value="">-- Выберите аудиторию --</option>
+                    {% for auditory in auditories %}
+                    <option value="{{ auditory.id }}" data-id="{{ auditory.id }}" data-number="{{ auditory.number }}"
+                            data-building="{{ auditory.building }}"
+                            {% if chosen_id == auditory.id|stringformat:"s" %}selected{% endif %}>
+                        {{ auditory.number }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="fields-container" class="mb-2" style="display: none; gap:10px;">
+                <div>{{ form.number }}</div>
+                <div>{{ form.building }}</div>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Изменить
+                </button>
+                <a href="{% url 'auditory' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                    назад</a>
+            </div>
+        </form>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+    {% render_search_form query placeholder="Поиск по номеру аудитории..." %}
+    {% render_auditory_table auditories %}
+    {% render_pagination page_obj query %}
+    <span>{{ error }}</span>
+</div>
+<script>
+    function applyAuditorySelection(selectedOption) {
+        const fieldsContainer = document.getElementById('fields-container');
+
+        if (selectedOption && selectedOption.value) {
+            fieldsContainer.style.display = 'flex';
+
+            const numberField = document.querySelector('[name="number"]');
+            const buildingField = document.querySelector('[name="building"]');
+
+            if (numberField && buildingField) {
+                numberField.value = selectedOption.getAttribute('data-number');
+                buildingField.value = selectedOption.getAttribute('data-building');
+            }
+        } else {
+            fieldsContainer.style.display = 'none';
+        }
+    }
+
+    $('#auditory-input').on("select2:select", function(e) {
+        applyAuditorySelection(e.params.data.element);
+    });
+
+    // предвыбор из таблицы (?id=)
+    $(document).ready(function() {
+        const sel = document.getElementById('auditory-input');
+        if (sel && sel.value) {
+            applyAuditorySelection(sel.selectedOptions[0]);
+        }
+    });
+</script>
+{% endblock %}

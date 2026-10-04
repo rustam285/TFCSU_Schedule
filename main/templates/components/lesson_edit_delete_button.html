@@ -1,0 +1,46 @@
+{% load static %}
+{% load template_tags %}
+<button
+        class="btn btn-outline-secondary"
+        type="button"
+        {% if button_type == 'delete' %}
+        data-bs-toggle="modal"
+        data-bs-target="#deleteLessonModal{{lesson_id}}"
+        {% endif %}
+        onclick="redirectToSchedule('{{ form_of_education }}', '{{ slot.id }}', '{{ slot.lesson.id }}' , '{{ button_type }}' , {{ chosen_group_id }}, '{{ chosen_date_start }}' , '{{ chosen_date_end }}' )"
+>
+    <img
+            src="{% static 'Images/' %}{% if button_type == 'edit' %}gear{% else %}delete{% endif %}.png"
+            height="17px"
+            width="17px"
+            alt="{% if button_type == 'edit' %}Редактировать{% else %}Удалить{% endif %}">
+</button>
+
+{% if form_of_education == 'о' %}
+    {% render_modal "deleteLessonModal" "delete_schedule" "Подтверждение" "Вы уверены, что хотите удалить выбранную очную пару?" "Удалить" "deleting_lesson_id" slot.lesson.id chosen_group_id slot.week_day slot.week_number return_to_main=return_to_main %}
+{% elif form_of_education == 'о-з' %}
+    {% render_modal "deleteLessonModal" "delete_mixed_schedule" "Подтверждение" "Вы уверены, что хотите удалить выбранную смешанную пару?" "Удалить" "deleting_lesson_id" slot.lesson.id slot.lesson.group.id chosen_date_start=chosen_date_start chosen_date_end=chosen_date_end return_to_main=return_to_main %}
+{% elif form_of_education == 'з' %}
+    {% render_modal "deleteLessonModal" "delete_part_time_schedule" "Подтверждение" "Вы уверены, что хотите удалить выбранную заочную пару?" "Удалить" "deleting_lesson_id" slot.lesson.id slot.lesson.group.id chosen_date_start=chosen_date_start chosen_date_end=chosen_date_end return_to_main=return_to_main %}
+{% else %}
+    Неизвестная форма обучения
+{% endif %}
+
+<script>
+    function redirectToSchedule(form_of_education, slot_id, slot_lesson_id, button_type, chosen_group, chosen_date_start, chosen_date_end) {
+        let scheduleType;
+
+        if(button_type === 'edit') {
+            if (form_of_education === 'о') {
+                scheduleType = 'full_time_schedule';
+                window.location.href =`/admin/edit/${scheduleType}/lesson/${slot_id}/`;
+            } else if (form_of_education === 'о-з') {
+                scheduleType = 'mixed_schedule';
+                window.location.href =`/admin/edit/${scheduleType}/lesson/${slot_id}/?chosen_date_start=${chosen_date_start}&chosen_date_end=${chosen_date_end}`;
+            } else if (form_of_education === 'з') {
+                scheduleType = 'part_time_schedule';
+                window.location.href =`/admin/edit/${scheduleType}/lesson/${slot_id}/?chosen_date_start=${chosen_date_start}&chosen_date_end=${chosen_date_end}`;
+            }
+        }
+    }
+</script>

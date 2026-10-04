@@ -1,0 +1,172 @@
+{% extends 'main/base.html' %}
+{% load template_tags %}
+{% block title %}
+Расписание по группам
+{% endblock %}
+{% block content %}
+<h1 style="margin:10px">Просмотр расписания по группе</h1>
+<div style="display:flex; flex-direction: row; justify-content: space-between; align-items:center">
+    <div>
+        <button class="btn btn-outline-dark" id="ftf">Очная форма обучения</button>
+        <button class="btn btn-outline-dark" id="mf">Очно-заочная форма обучения</button>
+        <button class="btn btn-outline-dark" id="ptf">Заочная форма обучения</button>
+    </div>
+    <a href="{% url 'guests' %}" style="height:40px; margin: 10px" class="btn btn-outline-dark">
+        <Вернуться
+    </a>
+</div>
+<hr><!-- горизонтальная линия -->
+<div id="full_time_form" {% if not is_full_time %}style="display:none" {% endif %}>
+    <div style="display:flex; flex-direction: row; justify-content: space-between; align-items:center">
+        <h2>Очная форма обучения</h2>
+        <form method="GET">
+            {% csrf_token %}
+            <div style="margin: 10px">
+                Группа:
+                <select class="form-control form-control-sm select2" name="chosen_full_time_group"
+                        style="width: 120px;">
+                    {% for i in full_time_groups %}
+                    <option value={{i.id}} {% if i.id == chosen_full_time_group.id %}selected{% endif %}>{{ i.title }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}">
+                <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}">
+                <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
+                        name="is_full_time" value='1'>Показать расписание
+                </button>
+            </div>
+        </form>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">
+        {{ message }}
+    </p>
+    {% endfor %}
+    {% endif %}
+    {% if full_time_table_query %}
+    {% render_schedule_table_for_group chosen_full_time_group full_time_table_query %}
+    <div style="margin: 10px 0;">
+        Скачать:
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=group&id={{ chosen_full_time_group.id }}&format=docx">Word</a>
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=group&id={{ chosen_full_time_group.id }}&format=xlsx">Excel</a>
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=group&id={{ chosen_full_time_group.id }}&format=pdf">PDF</a>
+    </div>
+    {% endif %}
+</div>
+
+<div id="mixed_form" {% if not is_mixed %}style="display:none" {% endif %}>
+    <div style="display:flex; flex-direction: row; justify-content: space-between; align-items:center">
+        <h2>Очно-заочная форма обучения</h2>
+        <form method="GET">
+            {% csrf_token %}
+            <div style="margin: 10px">
+                Группа:
+                <select class="form-control form-control-sm select2" name="chosen_mixed_group"
+                        style="width: 120px;">
+                    {% for i in mixed_groups %}
+                    <option value={{i.id}} {% if i.id == chosen_mixed_group.id %}selected{% endif %}>{{ i.title }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}">
+                <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}">
+                <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
+                        name="is_mixed" value="1">Показать расписание
+                </button>
+            </div>
+        </form>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">
+        {{ message }}
+    </p>
+    {% endfor %}
+    {% endif %}
+    {% if mixed_query %}
+    {% render_schedule_table_for_group chosen_mixed_group mixed_query %}
+    <div style="margin: 10px 0;">
+        Скачать:
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=group&id={{ chosen_mixed_group.id }}&format=docx">Word</a>
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=group&id={{ chosen_mixed_group.id }}&format=xlsx">Excel</a>
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=group&id={{ chosen_mixed_group.id }}&format=pdf">PDF</a>
+    </div>
+    {% endif %}
+</div>
+
+<div id="part_time_form" {% if not is_part_time %}style="display:none" {% endif %}>
+    <div style="display:flex; flex-direction: row; justify-content: space-between; align-items:center">
+        <h2>Заочная форма обучения</h2>
+        <form method="GET">
+            {% csrf_token %}
+            <div style="margin: 10px">
+                Группа:
+                <select class="form-control form-control-sm select2" name="chosen_part_time_group"
+                        style="width: 120px;">
+                    {% for group in part_time_groups %}
+                    <option value="{{ group.id }}" {% if group.id == chosen_part_time_group.id %} selected {% endif %}>
+                        {{ group.title }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}">
+                <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}">
+
+                <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
+                        name="is_part_time" value='1'>Показать расписание
+                </button>
+            </div>
+        </form>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">
+        {{ message }}
+    </p>
+    {% endfor %}
+    {% endif %}
+    {% if part_time_query %}
+    {% render_schedule_table_for_group chosen_part_time_group part_time_query %}
+    <div style="margin: 10px 0;">
+        Скачать:
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=group&id={{ chosen_part_time_group.id }}&format=docx">Word</a>
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=group&id={{ chosen_part_time_group.id }}&format=xlsx">Excel</a>
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=group&id={{ chosen_part_time_group.id }}&format=pdf">PDF</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+    $(document).ready(function() {
+        $("#ftf").click(
+        function () {
+            document.getElementById("full_time_form").style.display = "block";
+            document.getElementById("mixed_form").style.display = "none";
+            document.getElementById("part_time_form").style.display = "none";
+        });
+        $("#mf").click(
+        function () {
+            document.getElementById("full_time_form").style.display = "none";
+            document.getElementById("mixed_form").style.display = "block";
+            document.getElementById("part_time_form").style.display = "none";
+        });
+        $("#ptf").click(
+        function () {
+            document.getElementById("full_time_form").style.display = "none";
+            document.getElementById("mixed_form").style.display = "none";
+            document.getElementById("part_time_form").style.display = "block";
+        });
+    });
+</script>
+{% endblock %}

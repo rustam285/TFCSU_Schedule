@@ -1,0 +1,107 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Правила отображения дисциплин
+{% endblock %}
+{% block content %}
+<div style="display:flex; flex-direction: row; justify-content: space-between; align-items:center">
+    <h1 style="margin:10px">Правила отображения дисциплин в расписании</h1>
+    <a href="{% url 'home' %}" style="height:40px; margin: 10px" class="btn btn-outline-dark">
+        <Вернуться
+    </a>
+</div>
+<p class="text-muted" style="margin: 10px">
+    Здесь настраивается, какие <strong>чужие</strong> дисциплины дополнительно показываются
+    в расписании преподавателя (например, предмет официально закреплён за другим преподавателем,
+    а ведёт его этот) и какие его дисциплины, наоборот, скрываются.
+    По умолчанию правила действуют только для залогиненных пользователей;
+    галочка «и для гостей» распространяет правило на публичную часть сайта.
+</p>
+<form method="GET">
+    <div style="margin: 10px">
+        Преподаватель:
+        <select class="form-control form-control-sm select2" name="chosen_teacher" style="width: 220px;"
+                onchange="this.form.submit()">
+            <option value="">-- Выберите преподавателя --</option>
+            {% for i in teachers %}
+            <option value={{i.id}} {% if chosen_teacher and i.id == chosen_teacher.id %}selected{% endif %}>{{ i.name }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit" class="btn btn-danger" style="font-size:16px; padding: 6px 16px">Показать</button>
+    </div>
+</form>
+
+{% if messages %}
+{% for message in messages %}
+<p class="alert alert-{{ message.tags }} mt-2 mb-2">
+    {{ message }}
+</p>
+{% endfor %}
+{% endif %}
+
+{% if chosen_teacher %}
+<h3 style="margin:10px">Правила для: {{ chosen_teacher.name }}</h3>
+
+{% if rules %}
+<table class="table table-hover" style="border: 2px solid; margin: 10px">
+    <thead>
+    <tr>
+        <th>Дисциплина</th>
+        <th>Режим</th>
+        <th>Для гостей</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for rule in rules %}
+    <tr>
+        <td>{{ rule.discipline.title }}</td>
+        <td>
+            {% if rule.mode == 'show' %}
+            <span class="badge text-bg-success">показывать дополнительно</span>
+            {% else %}
+            <span class="badge text-bg-secondary">скрывать</span>
+            {% endif %}
+        </td>
+        <td>{% if rule.apply_for_guests %}да{% else %}нет{% endif %}</td>
+        <td>
+            <form method="post" style="display:inline">
+                {% csrf_token %}
+                <input type="hidden" name="delete_rule_id" value="{{ rule.id }}">
+                <input type="hidden" name="chosen_teacher" value="{{ chosen_teacher.id }}">
+                <button type="submit" class="btn btn-outline-danger btn-sm">Удалить</button>
+            </form>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p style="margin: 10px">Правил пока нет — расписание преподавателя формируется обычным образом.</p>
+{% endif %}
+
+<h4 style="margin:10px">Добавить правило</h4>
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="chosen_teacher" value="{{ chosen_teacher.id }}">
+    <input type="hidden" name="add_rule" value="1">
+    <div style="display:flex; gap:10px; margin:10px; align-items:center; flex-wrap: wrap">
+        <select class="form-control form-control-sm select2" name="discipline" style="width: 320px;">
+            <option value="">-- Выберите дисциплину --</option>
+            {% for d in disciplines %}
+            <option value="{{ d.id }}">{{ d.title }}</option>
+            {% endfor %}
+        </select>
+        <select class="form-control form-control-sm" name="mode" style="width: 230px;">
+            <option value="show">Показывать дополнительно</option>
+            <option value="hide">Скрывать</option>
+        </select>
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="apply_for_guests" id="apply_for_guests">
+            <label class="form-check-label" for="apply_for_guests">и для гостей</label>
+        </div>
+        <button type="submit" class="btn btn-danger">Добавить</button>
+    </div>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,81 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Редактирование факультета
+{% endblock %}
+{% block content %}
+<div>
+    <h1>Изменить данные о факультете</h1>
+    <div style="width:350px;">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-2">
+                <label>Выберите факультет:</label>
+                <select class="form-control form-control-sm select2" id="faculty-input" name="id">
+                    <option value="">-- Выберите факультет --</option>
+                    {% for faculty in faculties %}
+                    <option value="{{ faculty.id }}" data-id="{{ faculty.id }}" data-code="{{ faculty.code }}"
+                            data-title="{{ faculty.title }}"
+                            {% if chosen_id == faculty.id|stringformat:"s" %}selected{% endif %}>
+                        {{ faculty.title }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div id="fields-container" class="mb-2" style="display: none;">
+                <div style="display:flex">
+                    <div>{{ form.title }}</div>
+                    <div class="mr-2">{{ form.code }}</div>
+                </div>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Изменить
+                </button>
+                <a href="{% url 'faculty' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                    назад</a>
+            </div>
+        </form>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+    {% render_search_form query placeholder="Поиск по названию направления..." %}
+    {% render_faculty_table faculties %}
+    {% render_pagination page_obj query %}
+    <span>{{ error }}</span>
+</div>
+<script>
+    function applyFacultySelection(selectedOption) {
+        const fieldsContainer = document.getElementById('fields-container');
+
+        if (selectedOption && selectedOption.value) {
+            fieldsContainer.style.display = 'flex';
+
+            const codeField = document.querySelector('[name="code"]');
+            const titleField = document.querySelector('[name="title"]');
+
+            if (codeField && titleField) {
+                codeField.value = selectedOption.getAttribute('data-code');
+                titleField.value = selectedOption.getAttribute('data-title');
+            }
+        } else {
+            fieldsContainer.style.display = 'none';
+        }
+    }
+
+    $('#faculty-input').on("select2:select", function(e) {
+        applyFacultySelection(e.params.data.element);
+    });
+
+    // предвыбор из таблицы (?id=)
+    $(document).ready(function() {
+        const sel = document.getElementById('faculty-input');
+        if (sel && sel.value) {
+            applyFacultySelection(sel.selectedOptions[0]);
+        }
+    });
+</script>
+{% endblock %}

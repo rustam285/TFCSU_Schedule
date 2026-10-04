@@ -1,0 +1,25 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Группы
+{% endblock %}
+{% block content %}
+<div style="display: flex; flex-direction:column; align-items:center; ">
+    <h1 class="m-3">Список групп</h1>
+    <div class="m-3">
+        <a href="{% url 'add_groups' %}" class='btn btn-danger' style="font-size:18px; padding: 10px 20px">Добавить</a>
+        <a href="{% url 'edit_groups' %}" class='btn btn-danger' style="font-size:18px; padding: 10px 20px">Изменить</a>
+        <a href="{% url 'delete_groups' %}" class='btn btn-danger' style="font-size:18px; padding: 10px 20px">Удалить</a>
+        <a href="{% url 'home' %}" class='btn btn-danger' style="font-size:18px; padding: 10px 20px">Вернуться</a>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+    {% render_search_form query placeholder="Поиск по названию группы..." %}
+    {% render_group_table groups %}
+    {% render_pagination page_obj query %}
+    <span>{{ error }}</span>
+</div>
+{% endblock %}

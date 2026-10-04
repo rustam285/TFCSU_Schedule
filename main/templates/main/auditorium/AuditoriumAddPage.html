@@ -1,0 +1,29 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Добавить Аудиторию
+{% endblock %}
+{% block content %}
+<div>
+    <h1>Добавить аудиторию</h1>
+    <div class="mb-3">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.number }}<br>
+            {{ form.building }}<br>
+            <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Добавить</button>
+
+            <a href="{% url 'auditory' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                назад</a>
+        </form>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">
+        {{ message }}
+    </p>
+    {% endfor %}
+    {% endif %}
+    {% render_auditory_table auditories "385px" %}
+</div>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'main/base.html' %}
+{% load template_tags %}
+{% block title %}
+Удалить дисциплину
+{% endblock %}
+{% block content %}
+<div>
+    <h1 class="mb-3">Удалить дисциплину</h1>
+    <form class="mb-3" style="width:350px;" method="post">
+        {% csrf_token %}
+        <h6 class="mb-3">Выберите дисциплину для удаления:</h6>
+        <select class="form-control form-control-sm select2" id="discipline-select" name="id">
+            <option value="">-- Выберите дисциплину для удаления --</option>
+            {% for discipline in disciplines %}
+            <option value="{{ discipline.id }}" {% if chosen_id == discipline.id|stringformat:"s" %}selected{% endif %}>
+                {{ discipline.title }}
+            </option>
+            {% endfor %}
+        </select>
+        <div class="mt-3">
+            <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
+                    onclick="return confirm('Удалить выбранную дисциплину? Будут удалены и все занятия по ней.')">Удалить</button>
+            <a href="{% url 'discipline' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                назад</a>
+        </div>
+    </form>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+    {% render_search_form query placeholder="Поиск по названию дисциплины..." %}
+    {% render_discipline_table disciplines %}
+    {% render_pagination page_obj query %}
+    <span>{{ error }}</span>
+</div>
+{% endblock %}

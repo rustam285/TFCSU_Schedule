@@ -1,0 +1,113 @@
+{% load template_tags %}
+{% load static %}
+
+<table class="table table-hover table-bordered border-dark" style="background-color: #fff;">
+    <thead class="table-dark">
+    <tr>
+        <th style=" width:50px">д/н</th>
+        <th style=" width:50px">№</th>
+        <th style=" width:100px">Время</th>
+        <th>{{group}}</th>
+        <th style=" width:50px">Ауд.</th>
+        <th style="width:130px;">Изменение</th>
+    </tr>
+    </thead>
+    <tbody>
+    <tr>
+        <th  colspan="6">
+            <div id="toggleDiv1" style="display: flex;" class="justify-content-center align-items-center" onclick="toggleDivs()">
+                Добавить занятие
+<!--                <img src="{% static 'Images/file-plus.svg' %}" height="20px" alt="добавить">-->
+            </div>
+            <div id="toggleDiv2" style="display: none;">
+                 {% render_add_schedule_form add_lesson_data group groups week_days week_numbers chosen_day=chosen_day chosen_week=chosen_week chosen_date=chosen_date_start chosen_date_start=chosen_date_start chosen_date_end=chosen_date_end %}
+                <div style="margin:5px; display: grid;">
+                    <button class="btn btn-danger" onclick="toggleDivs()"
+                        type="submit" value="Добавить занятие">
+                    Отмена
+                </button>
+                </div>
+            </div>
+        </th>
+    </tr>
+    {% for week in schedule_query %}
+    {% if week.label %}
+    <tr>
+        <td class="week-label" colspan="6">{{week.label}}</td>
+    </tr>
+    {% endif %}
+    {% for day in week.days %}
+    <tr>
+        <td class="day-label" rowspan="{% if day.weekend %}2{% else %}{{day.length}}{% endif %}">
+            {{day.label}}
+        </td>
+    </tr>
+    {% if day.weekend %}
+    <tr>
+        <td colspan="5">
+            {{day.weekend}}
+        </td>
+    </tr>
+    {% endif %}
+    {% for slot in day.schedule %}
+    <tr>
+        <td>
+            {{ slot.lesson.number }}
+        </td>
+        <td>
+            {{ slot.time }}
+        </td>
+        <td>
+            <div style="overflow-wrap: break-word; white-space: normal; border: 0px">
+                {% if slot.lesson.is_special %}*{% endif %}{{ slot.lesson.discipline.title }}
+                {% if slot.lesson.format != '' %} ({{ slot.lesson.format }})
+                {% endif %},
+                {{ slot.lesson.teacher.name }}
+                {% if slot.lesson.teacher.title != '' %}, {{slot.lesson.teacher.title }}
+                {% endif %}
+            </div>
+        </td>
+        <td>{{ slot.lesson.auditorium.number }}</td>
+        <td>
+            {% render_lesson_edit_delete_button "edit" group slot chosen_date_start chosen_date_end %}
+            {% render_lesson_edit_delete_button "delete" group slot chosen_date_start chosen_date_end %}
+        </td>
+    </tr>
+    {% endfor %}
+    {% endfor %}
+    {% endfor %}
+    </tbody>
+</table>
+
+<script>
+    $(document).ready(function() {
+        const selectedOption = document.getElementById('selected_group_id');
+        if (!selectedOption) return;
+        const formOfEducation = selectedOption.getAttribute('data-form_of_education');
+        const datePicker = document.getElementById('date-picker');
+        const weekDayInput = document.getElementById('week-day-input');
+        if (!datePicker || !weekDayInput) return;
+
+        function setContainerDisabled(container, disabled) {
+            container.querySelectorAll('input').forEach(function (input) { input.disabled = disabled; });
+        }
+
+        if (formOfEducation === 'о') {
+            setContainerDisabled(datePicker, true);
+        } else {
+            setContainerDisabled(weekDayInput, true);
+        }
+    });
+    function toggleDivs() {
+        const div1 = document.getElementById('toggleDiv1');
+        const div2 = document.getElementById('toggleDiv2');
+
+        if (div1.style.display === 'none') {
+            div1.style.display = 'flex';
+            div2.style.display = 'none';
+        } else {
+            div1.style.display = 'none';
+            div2.style.display = 'block';
+        }
+    }
+</script>

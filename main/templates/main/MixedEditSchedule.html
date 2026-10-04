@@ -1,0 +1,69 @@
+{% extends 'main/base.html'%}
+{% block title %}
+Изменение занятий
+{% endblock %}
+{% block content %}
+{% load static %}
+<h1>Изменение занятий очно-заочной формы обучения</h1>
+<form method="GET">
+    {% csrf_token %}
+    <select class="form-control form-control-sm select2" id="groupId" name="chosen_group" style="width: 120px;">
+        {% for i in groups %}
+        <option  value="{{ i.id }}" {% if chosen_group and i.id == chosen_group.id %} selected {% endif %} >
+            {{ i.title }}
+        </option>
+        {% endfor %}
+    </select>
+    <input type="date" id="dateId" name="chosen_date" {% if chosen_date %}value="{{ chosen_date }}"{% endif %}>
+    <div style="display:flex; gap:10px; margin:10px">
+        <button class="btn btn-danger" style="font-size:18px; padding: 10px 20px" type="submit">Показать расписание</button>
+        <a class="btn btn-danger" href="{% url 'home' %}" style="font-size:18px; padding: 10px 20px">Вернуться
+            назад</a>
+    </div>
+</form>
+<table border="1" cellpadding="20" cellspacing="20" class="table">
+    <thead>
+    <tr>
+        <th>№</th>
+        <th>Время</th>
+        <th>{{chosen_group}}, занятия на
+            {% if chosen_date %}{{ chosen_date_label }}{% else %}##.##.####{% endif %}
+            {% if week_number %}, {{week_number}} неделя{% endif %}
+        </th>
+        <th>Ауд.</th>
+        <th>Изм.</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for i in query %}
+    <tr>
+        <td>
+            {{ i.lesson.number }}
+        </td>
+        <td>
+            {{ i.time }}
+        </td>
+        <td>
+            <div style="overflow-wrap: break-word; white-space: normal;">
+                {% if i.lesson.is_special %}*{% endif %}{{ i.lesson.discipline.title }}
+                {% if i.lesson.format != '' %} ({{ i.lesson.format }}){% endif %},
+                {{ i.lesson.teacher.name }}{% if i.lesson.teacher.title != '' %}, {{i.lesson.teacher.title }}{% endif %}
+            </div>
+        </td>
+        <td>
+            {{ i.lesson.auditorium.number }}
+        </td>
+        <td>
+            <a class="btn btn-outline-secondary" href="{% url 'edit_mixed_lesson' slot_id=i.id %}">
+                <img src="{% static 'Images/gear.png' %}" height="20px" alt="Изменить">
+            </a><br>
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<script>
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("dateId").setAttribute("min", today);
+</script>
+{% endblock %}

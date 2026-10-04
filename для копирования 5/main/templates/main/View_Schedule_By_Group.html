@@ -1,0 +1,176 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Расписание ТФ ЧелГУ
+{% endblock %}
+{% block content %}
+
+<h1>Просмотр расписания</h1>
+{% if messages %}
+{% for message in messages %}
+<p class="alert alert-{{ message.tags }} mt-2 mb-2">
+    {{ message }}
+</p>
+{% endfor %}
+{% endif %}
+<form method="GET">
+    {% csrf_token %}
+    <div class="d-flex">
+        <div class="mb-2" style="width:200px">
+            <label>Выберите группу:</label>
+            <select class="form-control form-control-sm select2" id="group-input" name="chosen_group">
+                <option value="">-- Выберите группу --</option>
+                {% for group in groups %}
+                <option value="{{ group.id }}" data-id="{{ group.id }}"
+                        data-form_of_education="{{ group.form_of_education }}"
+                        {% if group.id == chosen_group %}id="selected_group_id" selected {% endif %}>
+                    {{ group.title }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="date-picker" class="align-items-start mx-2"
+             style="display:{% if not chosen_date_start %}none{% else %}flex{% endif  %}; gap:10px;">
+            <div class="d-flex flex-column">
+                <label>Выберите начальную дату:</label>
+                <input type="date" id="chosen_date_start" name="chosen_date_start" value="{{ chosen_date_start }}"
+                       style="width:105px;">
+            </div>
+            <div class="d-flex flex-column">
+                <label>Выберите конечную дату:</label>
+                <input type="date" id="chosen_date_end" name="chosen_date_end" value="{{ chosen_date_end }}"
+                       style="width:105px;">
+            </div>
+        </div>
+        <div id="week-day-input" class="align-items-start"
+             style="display:{% if not chosen_day %}none{% else %}flex{% endif %}; gap:15px;">
+            <div class="d-flex flex-column">
+                <label>Дни недели:</label>
+                <div class="d-flex flex-wrap align-items-center" style="gap:12px; max-width: 680px;">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" name="all_days" value="1" id="all-days"
+                               {% if all_days %}checked{% endif %}>
+                        <label class="form-check-label" for="all-days"><strong>Все дни</strong></label>
+                    </div>
+                    {% for day in days %}
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" name="chosen_day"
+                               value="{{ day.0 }}" id="day-{{ day.0 }}"
+                               {% if day.0 in chosen_days %}checked{% endif %}>
+                        <label class="form-check-label" for="day-{{ day.0 }}">{{ day.1 }}</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="d-flex flex-column">
+                <label>Недели:</label>
+                <div class="d-flex align-items-center" style="gap:12px;">
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" name="all_weeks" value="1" id="all-weeks"
+                               {% if all_weeks %}checked{% endif %}>
+                        <label class="form-check-label" for="all-weeks"><strong>Все недели</strong></label>
+                    </div>
+                    {% for week in weeks %}
+                    <div class="form-check mb-0">
+                        <input class="form-check-input" type="checkbox" name="chosen_week"
+                               value="{{ week }}" id="week-{{ week }}"
+                               {% if week in chosen_weeks %}checked{% endif %}>
+                        <label class="form-check-label" for="week-{{ week }}">{{ week }} нед.</label>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <input type="hidden" name="form_submitted" value="1">
+    <div class="mb-2">
+        <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Показать расписание
+        </button>
+        <a href="{% url 'home' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться назад</a>
+        {% if chosen_group != -1 %}
+        <a href="{% url 'export_schedule' %}?type=group&id={{ chosen_group }}&format=pdf"
+           class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Получить PDF
+        </a>
+        {% else %}
+        <button disabled type="button" title="Сначала выберите группу" class="btn btn-danger"
+                style="font-size:18px; padding: 10px 20px">Получить PDF
+        </button>
+        {% endif %}
+    </div>
+</form>
+{% render_admin_schedule_table add_lesson_data group groups days weeks query chosen_day=chosen_day chosen_week=chosen_week chosen_date_start=chosen_date_start chosen_date_end=chosen_date_end %}
+<script>
+    function setContainerDisabled(container, disabled) {
+        container.querySelectorAll('input').forEach(function (input) { input.disabled = disabled; });
+    }
+
+    // «Все дни»/«Все недели» отмечают группу чекбоксов; снятие одного пункта снимает «Все»
+    function wireSelectAll(allId, itemSelector) {
+        const allBox = document.getElementById(allId);
+        if (!allBox) return;
+        const items = function () { return Array.from(document.querySelectorAll(itemSelector)); };
+        allBox.addEventListener('change', function () {
+            items().forEach(function (item) { item.checked = allBox.checked; });
+        });
+        items().forEach(function (item) {
+            item.addEventListener('change', function () {
+                allBox.checked = items().every(function (x) { return x.checked; });
+            });
+        });
+    }
+    wireSelectAll('all-days', '#week-day-input input[name="chosen_day"]');
+    wireSelectAll('all-weeks', '#week-day-input input[name="chosen_week"]');
+
+    $(document).ready(function() {
+        const selectedOption = document.getElementById('selected_group_id');
+        if (!selectedOption) return;
+        const formOfEducation = selectedOption.getAttribute('data-form_of_education');
+        const datePicker = document.getElementById('date-picker');
+        const weekDayInput = document.getElementById('week-day-input');
+
+        if (formOfEducation === 'о') {
+            setContainerDisabled(datePicker, true);
+            setContainerDisabled(weekDayInput, false);
+        } else {
+            setContainerDisabled(weekDayInput, true);
+            setContainerDisabled(datePicker, false);
+        }
+    });
+    $('#group-input').on("select2:select", function(e) {
+        //Поиск дивов из вложенного элемента для добавления занятия
+        const div1 = document.getElementById('toggleDiv1');
+        const div2 = document.getElementById('toggleDiv2');
+
+        if (div1.style.display === 'none') {
+            div1.style.display = 'flex';
+            div2.style.display = 'none';
+        }
+
+        const formattedToday = new Date().toISOString().split("T")[0];
+        let tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const formattedTomorrow = tomorrow.toISOString().split("T")[0];
+
+        const selectedOption = e.params.data.element;
+        const formOfEducation = selectedOption.getAttribute('data-form_of_education');
+
+        const datePicker = document.getElementById('date-picker');
+        const weekDayInput = document.getElementById('week-day-input');
+
+        if (formOfEducation === 'о') {
+            datePicker.style.display = 'none';
+            weekDayInput.style.display = 'flex';
+            setContainerDisabled(datePicker, true);
+            setContainerDisabled(weekDayInput, false);
+        } else {
+            document.getElementById("chosen_date_start").setAttribute("value", formattedToday);
+            document.getElementById("chosen_date_end").setAttribute("value", formattedTomorrow);
+            datePicker.style.display = 'flex';
+            weekDayInput.style.display = 'none';
+            setContainerDisabled(weekDayInput, true);
+            setContainerDisabled(datePicker, false);
+        }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,37 @@
+{% extends 'main/base.html' %}
+{% load template_tags %}
+{% block title %}
+Удалить факультет
+{% endblock %}
+{% block content %}
+<div>
+    <h1 class="mb-3">Удалить факультет</h1>
+    <form class="mb-3" style="width:350px;" method="post">
+        {% csrf_token %}
+        <h6 class="mb-3">Выберите факультет для удаления:</h6>
+        <select class="form-control form-control-sm select2" id="faculty-select" name="id">
+            <option value="">-- Выберите факультет --</option>
+            {% for faculty in faculties %}
+            <option value="{{ faculty.id }}" {% if chosen_id == faculty.id|stringformat:"s" %}selected{% endif %}>
+                {{ faculty.title }}
+            </option>
+            {% endfor %}
+        </select>
+        <div class="mt-3">
+            <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
+                    onclick="return confirm('Удалить выбранный факультет? Вместе с ним будут удалены связанные группы и дисциплины.')">Удалить</button>
+            <a href="{% url 'faculty' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                назад</a>
+        </div>
+    </form>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+    {% render_search_form query placeholder="Поиск по названию направления..." %}
+    {% render_faculty_table faculties %}
+    {% render_pagination page_obj query %}
+    <span>{{ error }}</span>
+</div>
+{% endblock %}

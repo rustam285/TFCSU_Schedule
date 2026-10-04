@@ -1,0 +1,103 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+    Удаление занятий
+{% endblock %}
+{% block content %}
+{% load static %}
+<h1>Изменение временных занятий</h1>
+<form method="GET">
+        {% csrf_token %}
+    <select name="chosen_group" id="chosen_group" class="form-control form-control-sm select2" style="width: 120px;">
+        {% for i in groups %}
+        <option value="{{ i.id }}" {% if i.id == chosen_group %}selected{% endif %}>
+                {{ i.title }}
+        </option>
+        {% endfor %}
+    </select>
+    <input type="date" id="dateId" name="chosen_date" {% if chosen_date %}value="{{chosen_date}}"{% endif %}>
+    <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Показать расписание</button>
+    <a href="{% url 'home' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться назад</a>
+    <div style="display:flex; gap:10px; margin:10px">
+        <button type="button" data-bs-toggle="modal" data-bs-target="#deleteGroupModal{{chosen_group}}" class="btn btn-danger"
+                style="font-size:18px; padding: 10px 20px">
+            Удалить всё расписание для группы
+        </button>
+
+        <button type="button" data-bs-toggle="modal" data-bs-target="#deleteDateModal{{chosen_date}}" class="btn btn-danger"
+                style="font-size:18px; padding: 10px 20px">
+            Удалить всё расписание для даты
+        </button>
+    </div>
+</form>
+{% render_modal "deleteGroupModal" "delete_part_time_schedule" "Подтверждение" "Вы уверены, что хотите удалить всё расписание для группы?" "Удалить" "deleting_group_id" chosen_group chosen_group=chosen_group chosen_date=chosen_date %}
+{% render_modal "deleteDateModal" "delete_part_time_schedule" "Подтверждение" "Вы уверены, что хотите удалить всё расписание для выбранной даты?" "Удалить" "deleting_date_id" chosen_date chosen_group=chosen_group chosen_date=chosen_date %}
+        <table border="1" cellpadding="20" cellspacing="20" class="table">
+        <thead>
+        <tr>
+            <th>Дата</th>
+            <th>№</th>
+            <th>Время</th>
+            <th>Группа</th>
+            <th>Дисциплина</th>
+            <th>Преподаватель</th>
+            <th>Аудитория</th>
+            <th>Изменить</th>
+            <th>Удалить</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for slot in schedule_by_date %}
+        <tr>
+            <td>
+                {{ slot.date }}
+            </td>
+            <td>
+                {{ slot.lesson.number }}
+            </td>
+            <td>
+                {{ slot.lesson.time }}
+            </td>
+            <td>
+                {{ slot.lesson.group.title }}
+            </td>
+            <td>
+                {% if slot.lesson.is_special %}*{% endif %}{{ slot.lesson.discipline.title }}
+                {% if slot.lesson.format != '' %} ({{ slot.lesson.format }}){% endif %}
+            </td>
+
+            <td>
+                {{ slot.lesson.teacher.name }}
+            </td>
+            <td>
+                {{ slot.lesson.auditorium.number }}
+            </td>
+            <td>
+                <button class="btn btn-outline-secondary" type="button"
+                onclick="redirectToEditPage('{{ slot.id }}', {{ chosen_group }})">
+                    <img src="{% static 'Images/gear.png' %}" height="17px" width="17px" alt="Редактировать">
+                </button>
+            </td>
+            <td>
+                <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#deleteLessonModal{{slot.lesson.id}}">
+                    <img src="{% static 'Images/delete.png' %}" height="17px" width="17px" alt="Удалить">
+                </button>
+                {% render_modal "deleteLessonModal" "delete_part_time_schedule" "Подтверждение" "Вы уверены, что хотите удалить выбранную пару?" "Удалить" "deleting_lesson_id" slot.lesson.id slot.lesson.group.id chosen_date=chosen_date %}
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+        </table>
+<script>
+    function redirectToEditPage(slot_id, chosen_group, chosen_date) {
+        window.location.href =`/admin/edit/part_time_schedule/lesson/${slot_id}/?chosen_group=${chosen_group}&chosen_date=${chosen_date}`;
+    }
+</script>
+{% if messages %}
+{% for message in messages %}
+<p class="alert alert-{{ message.tags }} mt-2 mb-2">
+    {{ message }}
+</p>
+{% endfor %}
+{% endif %}
+{% endblock %}

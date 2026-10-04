@@ -1,0 +1,127 @@
+{% extends 'main/base.html'%}
+{% block title %}
+Составление занятий
+{% endblock %}
+{% block content %}
+
+<h1>
+    Добавление занятий заочной формы обучения
+</h1>
+<form method="POST">
+    {% csrf_token %}
+    <select class="form-control form-control-sm select2" id="selected_group" name="selected_group"
+            style="width: 120px;">
+        {% for i in groups %}
+        <option  value="{{ i.id }}"{% if i == chosen_group %}selected{% endif %}>
+            {{ i.title }}
+        </option>
+        {% endfor %}
+    </select>
+    <input type="date" id="selected_date" name="selected_date" {% if chosen_date %}value="{{ chosen_date }}"{% endif %}>
+
+    <table border="1" cellpadding="20" cellspacing="20" class="table">
+        <thead>
+        <tr>
+            <th>№</th>
+            <th>*</th>
+            <th>Дисциплина</th>
+            <th>Формат</th>
+            <th>Преподаватель</th>
+            <th>Аудитория</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                <select class="form-control form-control-sm" name="selected_number">
+                    {% for key, value in numbers %}
+                    <option value = {{ key }}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input class="align-middle form-check-input m-0" type="checkbox" name="is_special">
+            </td>
+            <td>
+                <select class="form-control form-control-sm select2" name="selected_discipline">
+                    {% for i in disciplines %}
+                    <option value={{ i.id }}>{{ i.title }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input class="form-control form-control-sm" id="format" list="format_options" name="format"/>
+                <datalist id="format_options">
+                    <option value="лекция"></option>
+                    <option value="пз"></option>
+                </datalist>
+            </td>
+            <td>
+                <select class="form-control form-control-sm select2" name="selected_teacher" style="width: 200px;">
+                    {% for i in teachers %}
+                    <option value = "{{ i.id }}">{{ i.name }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select class="form-control form-control-sm select2" name="selected_auditorium" style="width: 80px;">
+                    {% for i in auditoriums %}
+                    <option value = {{ i.id }}>{{ i.number }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <button class="btn btn-danger" style="font-size:18px; padding: 10px 20px" type="submit">Составить</button>
+    <a class="btn btn-danger" href="{% url 'home' %}"
+       style="font-size:18px; padding: 10px 20px">Вернуться назад</a>
+</form>
+
+{% if messages %}
+{% for message in messages %}
+<p class="alert alert-{{ message.tags }} mt-2 mb-2">
+    {{ message }}
+</p>
+{% endfor %}
+{% endif %}
+
+<table class="table">
+    <thead>
+    <tr>
+        <th>№</th>
+        <th>Время</th>
+        <th>{{chosen_group}}, занятия на {% if chosen_date %}{{ chosen_date_label }}{% else %}##.##.####{% endif %}</th>
+        <th>Ауд.</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for slot in schedule_by_date %}
+    <tr>
+        <td>
+            {{ slot.lesson.number }}
+        </td>
+        <td>
+            {{ slot.time }}
+        </td>
+        <td>
+            <div style="overflow-wrap: break-word; white-space: normal;">
+                {% if slot.lesson.is_special %}*{% endif %}{{ slot.lesson.discipline.title }}
+                {% if slot.lesson.format != '' %} ({{ slot.lesson.format }}){% endif %},
+                {{ slot.lesson.teacher.name }}
+                {% if slot.lesson.teacher.title != '' %}, {{slot.lesson.teacher.title }}{% endif %}
+            </div>
+        </td>
+        <td>
+            {{ slot.lesson.auditorium.number }}
+        </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+
+<script>
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("selected_date").setAttribute("min", today);
+</script>
+{% endblock %}

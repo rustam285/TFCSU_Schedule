@@ -1,0 +1,44 @@
+.csu{
+  background-color: #6f0724;
+  color: #fff;
+}
+
+table.csu {
+background-color: #fff;
+border: 2px solid #380216;
+color: #000;
+}
+
+table.csu * {
+border: 1px solid #380216;
+padding: 5px;
+}
+
+thead.csu * {
+border: 1px solid #fff;
+text-align:center;
+font-weight:normal;
+}
+
+
+thead.csu th:nth-child(1) {
+  width: 1%;
+}
+
+thead.csu th:nth-child(2) {
+  width: 13%;
+}
+
+thead.csu th:nth-child(4) {
+  width: 5px;
+}
+
+td.week-label {
+background-color: #dc3545;
+color: #fff;
+text-align:center;
+}
+
+td.day-label {
+text-align: center;
+}

@@ -1,0 +1,154 @@
+{% extends 'main/base.html' %}
+{% block title %}
+Настройка уведомлений
+{% endblock %}
+{% block content %}
+<div style="display:flex; flex-direction: row; justify-content: space-between; align-items:center">
+    <h1 style="margin:10px">Уведомления: {{ subject_title }}</h1>
+    <a href="{% if subject_kind == 'teacher' %}{% url 'notification_teachers' %}{% else %}{% url 'notification_auditoriums' %}{% endif %}"
+       class="btn btn-outline-dark" style="margin: 10px">&lt;К списку</a>
+</div>
+<hr>
+{% if messages %}
+{% for message in messages %}
+<p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+{% endfor %}
+{% endif %}
+
+<p style="margin: 10px">
+    {% if subscription %}
+    <span class="badge bg-success">уведомления включены</span>
+    {% else %}
+    <span class="badge bg-secondary">уведомления не настроены</span>
+    {% endif %}
+    Уведомления появляются в панели справа (колокольчик в шапке сайта), только если в этот день
+    есть пары. Сначала выберите режим, затем задайте даты или дни недели.
+</p>
+
+<div style="display:flex; flex-direction:column; gap:15px; max-width: 860px; margin: 10px;">
+
+    <div class="bg-light border border-dark shadow rounded p-3">
+        <h5 class="mb-3">Режим уведомлений</h5>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_mode">
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="mode" id="mode_default"
+                       value="default"
+                       {% if mode == 'default' or not subscription %}checked{% endif %}>
+                <label class="form-check-label" for="mode_default">
+                    <strong>По умолчанию</strong> — уведомлять, только если сегодня или завтра есть пары
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="mode" id="mode_dates"
+                       value="dates"
+                       {% if mode == 'dates' %}checked{% endif %}>
+                <label class="form-check-label" for="mode_dates">
+                    <strong>Конкретные даты</strong> — уведомлять только в выбранные даты
+                </label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="mode" id="mode_weekdays"
+                       value="weekdays"
+                       {% if mode == 'weekdays' %}checked{% endif %}>
+                <label class="form-check-label" for="mode_weekdays">
+                    <strong>Дни недели</strong> — уведомлять по выбранным дням недели
+                    (отдельно для 1-й и 2-й недели)
+                </label>
+            </div>
+            <button type="submit" class="btn btn-danger mt-3" style="padding: 6px 16px">
+                Сохранить режим
+            </button>
+        </form>
+    </div>
+
+    <div class="bg-light border border-dark shadow rounded p-3">
+        <h5 class="mb-1">Конкретные даты</h5>
+        <p class="text-muted mb-3">Добавление даты автоматически включает режим «Конкретные даты».</p>
+        <form method="post" class="d-flex align-items-center gap-2 flex-wrap">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="add_date">
+            <input type="date" name="date" class="form-control" style="max-width: 200px" required>
+            <button type="submit" class="btn btn-danger" style="padding: 6px 16px">Добавить дату</button>
+        </form>
+        {% if dates %}
+        <table class="table table-hover mt-3" style="max-width: 400px">
+            <tbody>
+            {% for date in dates %}
+            <tr>
+                <td>{{ date|date:"d.m.Y" }}</td>
+                <td style="width: 50px">
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="remove_date">
+                        <input type="hidden" name="date" value="{{ date|date:'Y-m-d' }}">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Удалить дату">
+                            &times;
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-muted mt-2 mb-0">Даты пока не добавлены.</p>
+        {% endif %}
+    </div>
+
+    <div class="bg-light border border-dark shadow rounded p-3">
+        <h5 class="mb-1">Дни недели</h5>
+        <p class="text-muted mb-3">Сохранение дней автоматически включает режим «Дни недели».
+            Отмеченные дни с учётом чётности недели (1-я / 2-я).</p>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save_weekdays">
+            <div class="table-responsive">
+                <table class="table table-bordered text-center" style="max-width: 700px">
+                    <thead>
+                    <tr>
+                        <th></th>
+                        {% for day_key, day_label in week_days %}
+                        <th>{{ day_label }}</th>
+                        {% endfor %}
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for row in week_rows %}
+                    <tr>
+                        <th class="text-nowrap">{{ row.number }} неделя</th>
+                        {% for day in row.days %}
+                        <td>
+                            <input class="form-check-input mt-0" type="checkbox" name="week_day"
+                                   value="{{ row.number }}-{{ day.key }}"
+                                   aria-label="{{ day.label }}, {{ row.number }} неделя"
+                                   {% if day.checked %}checked{% endif %}>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <button type="submit" class="btn btn-danger mt-2" style="padding: 6px 16px">
+                Сохранить дни недели
+            </button>
+        </form>
+    </div>
+
+    {% if subscription %}
+    <div class="bg-light border border-dark shadow rounded p-3">
+        <h5 class="mb-3">Отключить уведомления</h5>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="delete">
+            <button type="submit" class="btn btn-outline-danger" style="padding: 6px 16px">
+                Удалить подписку
+            </button>
+        </form>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

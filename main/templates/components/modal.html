@@ -1,0 +1,32 @@
+<div class="modal fade" id="{{ modal_id }}{{button_value}}" tabindex="-1" aria-labelledby="{{ modal_id }}Label" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="{{ modal_id }}Label">{{ title }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                {{ body_text }}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <form method="POST"
+                            action="{% url url_name %}">
+                    {% csrf_token %}
+                    <input type="hidden" name="chosen_group" value="{{ chosen_group }}">
+                    <input type="hidden" name="chosen_day" value="{{ chosen_day }}">
+                    <input type="hidden" name="return_to_main" value="{{ return_to_main }}">
+                    <input type="hidden" name="chosen_week" value="{{ chosen_week }}">
+                    <input type="hidden" name="chosen_date" value="{{ chosen_date }}">
+                    {% if return_to_main %}
+                    <input type="hidden" name="chosen_date_start" value="{{ chosen_date_start }}">
+                    <input type="hidden" name="chosen_date_end" value="{{ chosen_date_end }}">
+                    {% endif %}
+                    <button type="submit" name="{{ button_name }}" value="{{ button_value }}" class="btn btn-danger">
+                        {{ button_text }}
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>

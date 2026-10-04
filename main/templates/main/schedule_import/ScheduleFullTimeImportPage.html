@@ -1,0 +1,89 @@
+{% extends 'main/base.html'%}
+{% load static %}
+{% block title %}
+Импорт расписания
+{% endblock %}
+{% block content %}
+<h1>Импорт расписания очной формы обучения</h1>
+<div class="m-3">
+    <label for="ScheduleFile" class="form-label"><strong>Загрузите .xlsx файл расписания</strong></label>
+    <div class="input-group">
+        <input class="form-control" type="file" id="ScheduleFile">
+        <select id="education_type" name="education_type" class="form-control" style="max-width:100px">
+            <option value="higher_education" selected>ВО</option>
+            <option value="secondary_vocational_education">СПО</option>
+        </select>
+        <button class="btn btn-danger" type="button" id="button-addon" onclick="importSchedule()">Импортировать</button>
+    </div>
+</div>
+<p class="alert alert-danger mt-2 mb-2" id="ft-import-upload-error" style="display: none">
+</p>
+{% if messages %}
+{% for message in messages %}
+<p class="alert alert-{{ message.tags }} mt-2 mb-2">
+    {{ message }}
+</p>
+{% endfor %}
+{% endif %}
+<div class="d-flex" style="flex-direction:row; justify-content: center; font-weight:bold">
+    <div>
+        <label for="importGroups">Расписание для групп: </label><select id="importGroups" class="form-control"></select>
+    </div>
+</div>
+<form method="POST" action="{% url 'import_schedule' %}" id="scheduleForm">
+    <input type="hidden" name="save_schedule" value="true">
+    <input type="hidden" id="hiddenImportGroups" name="needed_groups">
+    <div>
+        <button class="btn btn-danger" type="submit" name="load_result" value="1">Загрузить</button>
+    </div>
+    <div class="d-flex" style="flex-direction:row">
+        {% for week in week_numbers %}
+        <div class="container d-flex" style="flex-direction:column" id="{{ week }}_week_schedule">
+            <strong>
+                <div class="d-flex" style="flex-direction:row; justify-content: center;">
+                    {{ week }} неделя
+                </div>
+            </strong>
+            {% for day in week_days %}
+            <label for="{{ day }}_schedule">{{ day.1 }}</label>
+            <div class="container form-control mb-3" id="{{ day }}_schedule">
+                <div class="input-group">
+                    <span class="input-group-text">#</span>
+                    <span class="input-group-text px-3"> *</span>
+                    <input type="text" class="form-control" disabled readonly value="Дисциплина">
+                    <input type="text" class="form-control" disabled readonly value="Формат" style="max-width:250px">
+                    <input type="text" class="form-control" disabled readonly value="Преподаватель"
+                           style="max-width:200px">
+                    <input type="text" class="form-control" disabled readonly value="Ауд." style="max-width:60px">
+                </div>
+                {% for number in numbers %}
+                <div class="input-group">
+                    <span class="input-group-text">{{ number }}</span>
+                    <div class="input-group-text">
+                        <input id="{{ week }}_{{ day.0 }}_{{ number }}_is_special"
+                               name="{{ week }}_{{ day.0 }}_{{ number }}_is_special"
+                               type="checkbox" class="form-check-input mt-0">
+                    </div>
+                    <textarea id="{{ week }}_{{ day.0 }}_{{ number }}_discipline"
+                              name="{{ week }}_{{ day.0 }}_{{ number }}_discipline" class="form-control"
+                              rows="1"></textarea>
+                    <input id="{{ week }}_{{ day.0 }}_{{ number }}_format"
+                           name="{{ week }}_{{ day.0 }}_{{ number }}_format" type="text" class="form-control"
+                           style="max-width:250px">
+                    <input id="{{ week }}_{{ day.0 }}_{{ number }}_teacher"
+                           name="{{ week }}_{{ day.0 }}_{{ number }}_teacher" type="text" class="form-control"
+                           style="max-width:200px">
+                    <input id="{{ week }}_{{ day.0 }}_{{ number }}_auditorium"
+                           name="{{ week }}_{{ day.0 }}_{{ number }}_auditorium" type="text" class="form-control"
+                           style="max-width:60px">
+                </div>
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</form>
+
+<script src="{% static 'js/importSchedule.js' %}"></script>
+{% endblock %}

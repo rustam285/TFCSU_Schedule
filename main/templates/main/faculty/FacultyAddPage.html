@@ -1,0 +1,28 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Добавление факультета
+{% endblock %}
+{% block content %}
+<div>
+    <h1>Добавить факультет</h1>
+    <div class="mb-3">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.code }}<br>
+            {{ form.title }}<br>
+            <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Добавить</button>
+            <a href="{% url 'faculty' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                назад</a>
+        </form>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">
+        {{ message }}
+    </p>
+    {% endfor %}
+    {% endif %}
+    {% render_faculty_table faculties "260px" %}
+</div>
+{% endblock %}

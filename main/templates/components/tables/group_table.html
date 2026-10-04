@@ -1,0 +1,42 @@
+{% load static %}
+<div style="width:1000px;">
+    <table border="1" cellpadding="10" cellspacing="10" class="table table-hover">
+        <thead>
+        <tr>
+            <th style="border-right: 1px solid; border-color: inherit;"> Группа</th>
+            <th style="border-right: 1px solid; border-color: inherit;">Форма обучения</th>
+            <th style="border-right: 1px solid; border-color: inherit;">Курс</th>
+            <th style="border-right: 1px solid; border-color: inherit;">Направление</th>
+            <th style="width: 110px;">Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for group in groups %}
+        <tr>
+            <td style="border-right: 1px solid; border-color: inherit;">
+                {{ group.title }}
+            </td>
+            <td style="border-right: 1px solid; border-color: inherit;">
+                {{ group.get_form_of_education_display }}
+            </td>
+            <td style="border-right: 1px solid; border-color: inherit;">
+                {{ group.course }}
+            </td>
+            <td style="border-right: 1px solid; border-color: inherit;">
+                {% if not group.faculty %} -- {% else %}{{ group.faculty }}{% endif %}
+            </td>
+            <td>
+                <a class="btn btn-outline-secondary btn-sm"
+                   href="{% url 'edit_groups' %}?id={{ group.id }}" title="Изменить">
+                    <img src="{% static 'Images/gear.png' %}" height="17px" alt="Изменить">
+                </a>
+                <a class="btn btn-outline-danger btn-sm"
+                   href="{% url 'delete_groups' %}?id={{ group.id }}" title="Удалить">
+                    <img src="{% static 'Images/delete.png' %}" height="17px" alt="Удалить">
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

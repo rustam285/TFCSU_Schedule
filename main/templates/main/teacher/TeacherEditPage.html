@@ -1,0 +1,83 @@
+{% extends 'main/base.html' %}
+{% load template_tags %}
+{% block title %}
+Редактирование
+{% endblock %}
+{% block content %}
+<div>
+    <h1>Изменить данные о преподавателе</h1>
+    <div style="width:350px;">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-2">
+                <label>Выберите преподавателя:</label>
+                <select class="form-control form-control-sm select2" id="teacher-input" name="id">
+                    <option value="">-- Выберите преподавателя --</option>
+                    {% for teacher in teachers %}
+                    <option value="{{ teacher.id }}" data-id="{{ teacher.id }}" data-name="{{ teacher.name }}"
+                            data-title="{{ teacher.title }}"
+                            {% if chosen_id == teacher.id|stringformat:"s" %}selected{% endif %}>
+                        {{ teacher.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" id="id" name="id">
+            </div>
+
+            <div id="fields-container" class="mb-2" style="display: none;">
+                <div style="display:flex">
+                    <div class="mr-2">{{ form.name }}</div>
+                    <div>{{ form.title }}</div>
+                </div>
+            </div>
+            <div>
+                <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Изменить
+                </button>
+                <a href="{% url 'teachers' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                    назад</a>
+            </div>
+        </form>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+    {% render_search_form query placeholder="Поиск по фамилии..." %}
+    {% render_teacher_table teachers %}
+    {% render_pagination page_obj query %}
+    <span>{{ error }}</span>
+</div>
+<script>
+    function applyTeacherSelection(selectedOption) {
+        const fieldsContainer = document.getElementById('fields-container');
+
+        if (selectedOption && selectedOption.value) {
+            document.getElementById('id').value = selectedOption.getAttribute('data-id');
+            fieldsContainer.style.display = 'flex';
+
+            const nameField = document.querySelector('[name="name"]');
+            const titleField = document.querySelector('[name="title"]');
+
+            if (nameField && titleField) {
+                nameField.value = selectedOption.getAttribute('data-name');
+                titleField.value = selectedOption.getAttribute('data-title');
+            }
+        } else {
+            fieldsContainer.style.display = 'none';
+        }
+    }
+
+    $('#teacher-input').on("select2:select", function(e) {
+        applyTeacherSelection(e.params.data.element);
+    });
+
+    // предвыбор из таблицы (?id=)
+    $(document).ready(function() {
+        const sel = document.getElementById('teacher-input');
+        if (sel && sel.value) {
+            applyTeacherSelection(sel.selectedOptions[0]);
+        }
+    });
+</script>
+{% endblock %}

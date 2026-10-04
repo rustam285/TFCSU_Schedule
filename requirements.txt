@@ -1,0 +1,8 @@
+django~=5.1.2
+django-select2~=8.2.1
+pandas
+openpyxl
+whitenoise
+waitress
+python-docx~=1.2.0
+reportlab~=5.0.1

@@ -1,0 +1,109 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Составление занятий
+{% endblock %}
+{% block content %}
+<h1>Добавление занятий очно-заочной формы обучения</h1>
+<form method="POST">
+    {% csrf_token %}
+    <select class="form-control form-control-sm select2" id="selected_group" name="selected_group"
+            style="width: 120px;">
+        {% for i in groups %}
+        <option  value="{{ i.id }}"{% if i == chosen_group %}selected{% endif %}>
+            {{ i.title }}
+        </option>
+        {% endfor %}
+    </select>
+    <input type="date" id="selected_date" name="selected_date" {% if chosen_date %}value="{{ chosen_date }}"{% endif %}>
+    <select id="selected_week_number" name="selected_week_number">
+        {% for i in week_numbers %}
+        <option  value="{{ i }}" {% if i == chosen_week_number %}selected{% endif %}>{{ i }} неделя</option>
+        {% endfor %}
+    </select>
+    <table border="1" cellpadding="20" cellspacing="20" class="table">
+        <thead>
+        <tr>
+            <th style="width:45px">№</th>
+            <th style="width:45px">*</th>
+            <th>Дисциплина</th>
+            <th>Формат</th>
+            <th>Преподаватель</th>
+            <th>Аудитория</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                <select class="form-control form-control-sm" name="selected_number">
+                    {% for key, value in numbers %}
+                    <option value = {{ key }}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input class="align-middle form-check-input m-0" type="checkbox" name="is_special">
+            </td>
+            <td>
+                <select class="form-control form-control-sm select2" name="selected_discipline">
+                    {% for i in disciplines %}
+                    <option value={{ i.id }}>{{ i.title }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input class="form-control form-control-sm" id="format" list="format_options" name="format"/>
+                <datalist id="format_options">
+                    <option value="лекция"></option>
+                    <option value="пз"></option>
+                </datalist>
+            </td>
+            <td>
+                <select class="form-control form-control-sm select2" name="selected_teacher" style="width: 200px;">
+                    {% for i in teachers %}
+                    <option value = "{{ i.id }}">{{ i.name }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select class="form-control form-control-sm select2" name="selected_auditorium" style="width: 80px;">
+                    {% for i in auditoriums %}
+                    <option value = {{ i.id }}>{{ i.number }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+    <div style="display:flex; gap:10px; margin:10px">
+        <button class="btn btn-danger" type="submit"
+                style="font-size:18px; padding: 10px 20px">Составить</button>
+        <a class="btn btn-danger" href="{% url 'home' %}"
+           style="font-size:18px; padding: 10px 20px">Вернуться назад</a>
+    </div>
+</form>
+{% if messages %}
+{% for message in messages %}
+<p class="alert alert-{{ message.tags }} mt-2 mb-2">
+    {{ message }}
+</p>
+{% endfor %}
+{% endif %}
+
+{% render_schedule_table chosen_group mixed_query %}
+
+<script>
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("selected_date").setAttribute("min", today);
+
+    $(document).ready(function() {
+        $('.select2').select2({
+            //minimumResultsForSearch: Infinity // Отключите поиск, если он не нужен
+        });
+
+        $(document).on('select2:open', () => {
+            document.querySelector('.select2-search__field').focus();
+        });
+    });
+</script>
+{% endblock %}

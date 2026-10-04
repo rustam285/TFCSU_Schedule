@@ -1,0 +1,120 @@
+{% extends 'main/base.html'%}
+{% block content %}
+<title>Изменение занятия</title>
+<h1>Изменение постоянного занятия</h1>
+<form action="" method="POST" role="form">
+    {% csrf_token %}
+    <table class="table table-hover" style="border: 2px solid;">
+        <thead>
+    <tr>
+        <th class="bg-danger" style="color:white">№</th>
+        <th class="bg-danger" style="color:white">Время</th>
+        <th class="bg-danger" style="color:white; display:flex;">
+            <div style="margin-top:auto">
+                {{slot.lesson.group.title}},
+            </div>
+                <select class="form-control form-control-sm" name="new_week_number"
+                    style="font-weight: bold; width: 15ch; margin-left:10px">
+                {% for i in week_numbers %}
+                <option value={{i}}  {% if i == slot.week_number %}selected{% endif %}>{{i}} неделя</option>
+                {% endfor %}
+                </select>,
+            <select class="form-control form-control-sm" name="new_week_day"
+                    style="font-weight: bold; width: 15ch; margin-left:10px">
+                {% for i in week_days %}
+                <option value={{i.0}}  {% if i.0 == slot.week_day %}selected{% endif %}>{{ i.1 }}</option>
+                {% endfor %}
+            </select>
+        </th>
+        <th class="bg-danger" style="color:white">Ауд.</th>
+    </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>{{lesson_number}}</td>
+            <td>{{time}}</td>
+            <td>{% if slot.lesson.is_special %}*{% endif %}{{slot.lesson.discipline.title}} ({{slot.lesson.format}}), {{slot.lesson.teacher.name}},
+                {{slot.lesson.teacher.title}}
+            </td>
+            <td>{{slot.lesson.auditorium.number}}</td>
+    </tr>
+        </tbody>
+</table>
+<hr>
+
+<table border="1" style="margin: auto;" class="table">
+    <tr>
+        <th>№</th>
+        <th>*</th>
+        <th>Предмет</th>
+        <th>Формат</th>
+        <th>Преподаватель</th>
+        <th>Аудитория</th>
+        <th></th>
+    </tr>
+    <tr>
+        <td>
+            <select class="form-control form-control-sm" name="new_number" style="width: 30px;">
+                {% for i in numbers %}
+                <option value={{ i.0 }} {% if i.0 == slot.lesson.number %}selected{% endif %}>{{ i.1 }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input class="align-middle form-check-input m-0" type="checkbox" name="is_special"
+                   {% if slot.lesson.is_special %}checked{% endif %}>
+        </td>
+        <td>
+            <select class="form-control form-control-sm select2" name="new_discipline">
+                {% for i in disciplines %}
+                <option value={{ i.id }} {% if i == slot.lesson.discipline %}selected{% endif %} style="width: 20ch; overflow-wrap: break-word; white-space: normal;" >
+                    {{ i.title }}
+                </option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input class="form-control form-control-sm" id="new_format" list="format_options" name="new_format"
+                   value="{{slot.lesson.format}}"/>
+            <datalist id="format_options">
+                <option value="лекция"></option>
+                <option value="пз"></option>
+            </datalist>
+        </td>
+        <td>
+            <select class="form-control form-control-sm select2" name="new_teacher" style="width: 180px;">
+                {% for i in teachers %}
+                <option value={{ i.id }} {% if i == slot.lesson.teacher %}selected{% endif %}>
+                    {{ i.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <select class="form-control form-control-sm select2" name="new_auditorium">
+                {% for i in auditoriums %}
+                <option value={{ i.id }} {%if i == slot.lesson.auditorium %}selected{% endif %}>
+                    {{ i.number }}
+                </option>
+                {% endfor %}
+            </select>
+        </td>
+        <td><input class="btn btn-danger"
+                   type="submit" value="Изменить занятие"></td>
+    </tr>
+</table>
+{% if messages %}
+{% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+{% endfor %}
+{% endif %}
+    <div align="right" style="font-size:18px; padding: 10px">
+        <a class="btn btn-danger"
+           href="{% url 'delete_schedule'  %}?chosen_group={{chosen_group}}">
+            Вернуться назад</a>
+<!--        <a class="btn btn-danger"-->
+<!--           href="{% url 'check_schedule_group'  %}?chosen_group={{slot.lesson.group.id}}&chosen_day={{slot.week_day}}&chosen_week={{slot.week_number}}">-->
+<!--            Посмотреть в расписании</a>-->
+    </div>
+</form>
+{% endblock %}

@@ -1,0 +1,115 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+    Удаление занятий
+{% endblock %}
+{% block content %}
+{% load static %}
+    <h1>Изменение постоянных занятий</h1>
+    <form method="GET">
+        {% csrf_token %}
+        Группа:
+    <select name="chosen_group" id="chosen_group" class="form-control form-control-sm select2" style="width: 120px;">
+        {% for i in groups %}
+        <option value="{{ i.id }}" {% if i.id == chosen_group %}selected{% endif %}>
+                {{ i.title }}
+        </option>
+        {% endfor %}
+    </select>
+<!--    <select name="chosen_day" id="chosen_day" class="form-control form-control-sm select2" style="width: 120px;">-->
+<!--        {% for i in day %}-->
+<!--        <option value="{{ i.0 }}" {% if i.0 == chosen_day %} selected {% endif %}>{{ i.1 }}</option>-->
+<!--        {% endfor %}-->
+<!--    </select>-->
+<!--    -->
+<!--    <select name="chosen_week" id="chosen_week" class="form-control form-control-sm select2" style="width: 120px;">-->
+<!--        {% for i in weeks %}-->
+<!--        <option value="{{ i }}" {% if i == chosen_week %}selected{% endif %}>{{ i }}</option>-->
+<!--        {% endfor %}-->
+<!--    </select>-->
+    <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Показать расписание</button>
+    <a href="{% url 'home' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться назад</a>
+<!--    <div style="display:flex; gap:10px; margin:10px" >-->
+        <button type="button" data-bs-toggle="modal" data-bs-target="#deleteGroupModal{{chosen_group}}" class="btn btn-danger"
+                style="font-size:18px; padding: 10px 20px">
+            Удалить всё расписание для группы
+        </button>
+<!--        <button type="button" data-bs-toggle="modal" data-bs-target="#deleteDayModal{{chosen_day}}" class="btn btn-danger"-->
+<!--                style="font-size:18px; padding: 10px 20px">-->
+<!--            Удалить всё расписание для дня-->
+<!--        </button>-->
+<!--        <button type="button" data-bs-toggle="modal" data-bs-target="#deleteWeekModal{{chosen_week}}" class="btn btn-danger"-->
+<!--                style="font-size:18px; padding: 10px 20px">-->
+<!--            Удалить всё расписание для выбранной недели-->
+<!--        </button>-->
+<!--    </div>-->
+    </form>
+<!--{% render_modal "deleteWeekModal" "delete_schedule" "Подтверждение" "Вы уверены, что хотите удалить всё расписание для выбранной недели?" "Удалить" "deleting_week_id" chosen_week chosen_group chosen_day chosen_week return_to_main=False %}-->
+{% render_modal "deleteGroupModal" "delete_schedule" "Подтверждение" "Вы уверены, что хотите удалить всё расписание для группы?" "Удалить" "deleting_group_id" chosen_group chosen_group chosen_day chosen_week %}
+<!--{% render_modal "deleteDayModal" "delete_schedule" "Подтверждение" "Вы уверены, что хотите удалить всё расписание для дня?" "Удалить" "deleting_day_id" chosen_day chosen_group chosen_day chosen_week %}-->
+<table border="1" cellpadding="20" cellspacing="20" class="table">
+<thead>
+<tr>
+    <th>Неделя</th>
+    <th>День</th>
+    <th>№</th>
+    <th>Время</th>
+    <th>Группа</th>
+    <th>Дисциплина</th>
+    <th>Преподаватель</th>
+    <th>Аудитория</th>
+    <th>Изменить</th>
+    <th>Удалить</th>
+</tr>
+</thead>
+<tbody>
+{% for slot in schedule_by_day %}
+<tr>
+    <td>
+        {{ slot.week_number }}
+    </td>
+    <td>
+        {{ slot.week_day }}
+    </td>
+    <td>
+        {{ slot.lesson.number }}
+    </td>
+    <td>
+        {{ slot.lesson.time }}
+    </td>
+    <td>
+        {{ slot.lesson.group.title }}
+    </td>
+    <td>
+        {% if slot.lesson.is_special %}*{% endif %}{{ slot.lesson.discipline.title }}
+        {% if slot.lesson.format != '' %} ({{ slot.lesson.format }}){% endif %}
+    </td>
+
+    <td>
+        {{ slot.lesson.teacher.name }}
+    </td>
+    <td>
+        {{ slot.lesson.auditorium.number }}
+    </td>
+    <td>
+        <button class="btn btn-outline-secondary" type="button"
+        onclick="redirectToEditPage('{{ slot.lesson.group.form_of_education }}', '{{ slot.id }}', {{ chosen_group }})">
+            <img src="{% static 'Images/gear.png' %}" height="17px" width="17px" alt="Редактировать">
+        </button>
+    </td>
+    <td>
+        <button class="btn btn-outline-secondary" type="button" data-bs-toggle="modal" data-bs-target="#deleteLessonModal{{slot.lesson.id}}">
+            <img src="{% static 'Images/delete.png' %}" height="17px" width="17px" alt="Удалить">
+        </button>
+        {% render_modal "deleteLessonModal" "delete_schedule" "Подтверждение" "Вы уверены, что хотите удалить выбранную пару?" "Удалить" "deleting_lesson_id" slot.lesson.id slot.lesson.group.id slot.week_day slot.week_number return_to_main=False %}
+    </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+<script>
+    function redirectToEditPage(form_of_education, slot_id, chosen_group) {
+        window.location.href =`/admin/edit/full_time_schedule/lesson/${slot_id}/?chosen_group=${chosen_group}`;
+    }
+</script>
+{% endblock %}

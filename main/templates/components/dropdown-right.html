@@ -1,0 +1,11 @@
+<div class="btn-group dropend">
+    <button {% if disabled %} disabled {% endif%} class="btn btn-danger dropdown-toggle" type="button" id="dropdownMenuButton" data-bs-toggle="dropdown"
+            aria-expanded="false">
+        {{button_text}}
+    </button>
+    <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+        {% for text, url, is_disabled in dropdown_items %}
+        <li><a class="dropdown-item {% if is_disabled %}disabled{% endif %}" href="{{ url }}">{{ text }}</a></li>
+        {% endfor %}
+    </ul>
+</div>

@@ -1,0 +1,37 @@
+{% extends 'main/base.html' %}
+{% load template_tags %}
+{% block title %}
+Удалить группу
+{% endblock %}
+{% block content %}
+<div>
+    <h1 class="mb-3">Удалить группу</h1>
+    <form class="mb-3" style="width:350px;" method="post">
+        {% csrf_token %}
+        <h6 class="mb-3">Выберите группу для удаления:</h6>
+        <select class="form-control form-control-sm select2" id="group-select" name="id">
+            <option value="">-- Выберите группу для удаления --</option>
+            {% for group in groups %}
+            <option value="{{ group.id }}" {% if chosen_id == group.id|stringformat:"s" %}selected{% endif %}>
+                {{ group.title }}
+            </option>
+            {% endfor %}
+        </select>
+        <div class="mt-3">
+            <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
+                    onclick="return confirm('Удалить выбранную группу? Вместе с ней будет удалено всё её расписание.')">Удалить</button>
+            <a href="{% url 'groups' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                назад</a>
+        </div>
+    </form>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+    {% render_search_form query placeholder="Поиск по названию группы..." %}
+    {% render_group_table groups %}
+    {% render_pagination page_obj query %}
+    <span>{{ error }}</span>
+</div>
+{% endblock %}

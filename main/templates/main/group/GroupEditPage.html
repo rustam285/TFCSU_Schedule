@@ -1,0 +1,101 @@
+{% extends 'main/base.html' %}
+{% load template_tags %}
+{% block title %}
+Редактирование групп
+{% endblock %}
+{% block content %}
+<div>
+    <h1>Изменить данные про группу</h1>
+    <div style="width:350px;">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-2">
+                <label>Выберите группу:</label>
+                <select class="form-control form-control-sm select2" id="group-input" name="id">
+                    <option value="">-- Выберите группу --</option>
+                    {% for group in groups %}
+                    <option value="{{ group.id }}" data-id="{{ group.id }}" data-title="{{ group.title }}"
+                            data-form_of_education="{{ group.form_of_education }}" data-course="{{ group.course }}"
+                            data-faculty="{{ group.faculty.id }}"
+                            {% if chosen_id == group.id|stringformat:"s" %}selected{% endif %}>
+                        {{ group.title }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" id="id" name="id">
+            </div>
+
+            <div id="fields-container" class="mb-2" style="display: none;">
+                <div class="d-flex">
+                    <div class="my-2 mt-2 d-flex flex-column" style="width:200px; margin-left:0px">
+                        <h6>Группа</h6>
+                        {{ form.title }}
+                    </div>
+                    <div class="m-2 d-flex flex-column">
+                        <h6>Форма обучения</h6>
+                        {{ form.form_of_education }}
+                    </div>
+                    <div class="m-2 d-flex flex-column" style="width:50px;">
+                        <h6>Курс</h6>
+                        {{ form.course }}
+                    </div>
+                    <div class="m-2 d-flex flex-column">
+                        <h6>Направление</h6>
+                        {{ form.faculty }}
+                    </div>
+                </div>
+            </div>
+            <div class="mb-2">
+                <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Изменить
+                </button>
+                <a href="{% url 'groups' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                    назад</a>
+            </div>
+        </form>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+    {% render_search_form query placeholder="Поиск по названию группы..." %}
+    {% render_group_table groups %}
+    {% render_pagination page_obj query %}
+</div>
+<script>
+    function applyGroupSelection(selectedOption) {
+        const fieldsContainer = document.getElementById('fields-container');
+
+        if (selectedOption && selectedOption.value) {
+            document.getElementById('id').value = selectedOption.getAttribute('data-id');
+            fieldsContainer.style.display = 'flex';
+
+            const titleField = document.querySelector('[name="title"]');
+            const formField = $('[name="form_of_education"]');
+            const courseField = document.querySelector('[name="course"]');
+            const facultyField = $('[name="faculty"]');
+
+            if (titleField && formField && courseField && facultyField) {
+                titleField.value = selectedOption.getAttribute('data-title');
+                formField.val(selectedOption.getAttribute('data-form_of_education')).trigger('change');
+                courseField.value = selectedOption.getAttribute('data-course');
+                facultyField.val(selectedOption.getAttribute('data-faculty')).trigger('change');
+            }
+        } else {
+            fieldsContainer.style.display = 'none';
+        }
+    }
+
+    $('#group-input').on("select2:select", function(e) {
+        applyGroupSelection(e.params.data.element);
+    });
+
+    // предвыбор из таблицы (?id=)
+    $(document).ready(function() {
+        const sel = document.getElementById('group-input');
+        if (sel && sel.value) {
+            applyGroupSelection(sel.selectedOptions[0]);
+        }
+    });
+</script>
+{% endblock %}

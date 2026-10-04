@@ -1,0 +1,32 @@
+{% extends 'main/base.html' %}
+{% block title %}
+Настройка уведомлений
+{% endblock %}
+{% block content %}
+<h1 style="margin:10px">Настройка уведомлений</h1>
+<p class="text-muted" style="margin: 10px">
+    Уведомления показываются в панели справа (колокольчик в шапке) и доступны только залогиненным
+    пользователям. Настройте, о каких преподавателях и аудиториях сообщать.
+</p>
+<div style="display:flex; flex-direction: row; gap: 20px; margin: 20px 10px; flex-wrap: wrap;">
+    <div class="bg-light border border-dark shadow rounded p-3" style="min-width: 320px;">
+        <h5 class="mb-3">Уведомления по преподавателям</h5>
+        <a href="{% url 'notification_teachers' %}" class="btn btn-danger"
+           style="font-size:16px; padding: 8px 16px">Выбрать преподавателя</a>
+        {% if counts.teachers %}
+        <span class="badge bg-secondary ms-2">настроено: {{ counts.teachers }}</span>
+        {% endif %}
+    </div>
+    <div class="bg-light border border-dark shadow rounded p-3" style="min-width: 320px;">
+        <h5 class="mb-3">Уведомления по аудиториям</h5>
+        <a href="{% url 'notification_auditoriums' %}" class="btn btn-danger"
+           style="font-size:16px; padding: 8px 16px">Выбрать аудиторию</a>
+        {% if counts.auditoriums %}
+        <span class="badge bg-secondary ms-2">настроено: {{ counts.auditoriums }}</span>
+        {% endif %}
+    </div>
+</div>
+<div style="margin: 10px">
+    <a href="{% url 'home' %}" class="btn btn-outline-dark">Вернуться</a>
+</div>
+{% endblock %}

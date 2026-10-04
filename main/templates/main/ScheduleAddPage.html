@@ -1,0 +1,139 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Составление занятий
+{% endblock %}
+{% block content %}
+<h1>
+    Добавление занятий
+</h1>
+<form method="POST">
+    {% csrf_token %}
+    <div class="d-flex" style="flex-direction:column">
+        <div style="display: flex; flex-direction:column">
+            <label for="selected_groups">Для групп(ы):</label>
+            <select class="form-control form-control-sm select2 d-block" id="selected_groups" name="selected_groups"
+                    multiple="multiple">
+                {% for i in groups %}
+                <option value="{{ i.id }}" {% if i in chosen_groups %}selected{% endif %}>{{ i.title }}</option>
+                {% endfor %}
+            </select>
+            <div><input type="checkbox" name="is_temp" id="is_temp" {% if is_temp == 'on' %}checked{% endif %} >
+            <label for="is_temp">Временная пара</label></div>
+            <div id="for_const">
+                День недели:
+                <select id="selected_day" name="selected_day">
+                    {% for i in week_days %}
+                    <option value="{{ i.0 }}" {% if i.0 == chosen_day %}selected{% endif %}>{{ i.1 }}</option>
+                    {% endfor %}
+                </select>
+                Номер недели:
+                <select id="selected_week" name="selected_week">
+                    {% for i in week_numbers %}
+                    <option value="{{ i }}" {% if i == chosen_week %}selected{% endif %}>{{ i }} неделя</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div id="for_temp">
+                На дату:
+                <input type="date" id="selected_date" name="selected_date" {% if chosen_date %}value="{{ chosen_date }}"{% endif %}>
+            </div>
+        </div>
+    </div>
+    <table border="1" cellpadding="20" cellspacing="20" class="table">
+        <thead>
+        <tr>
+            <th>№</th>
+            <th>*</th>
+            <th>Дисциплина</th>
+            <th>Формат</th>
+            <th>Преподаватель</th>
+            <th>Аудитория</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <td>
+                <select class="form-control form-control-sm" name="selected_number">
+                    {% for key, value in numbers %}
+                    <option value={{ key }}>{{ value }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input class="align-middle form-check-input m-0" type="checkbox" name="is_special">
+            </td>
+            <td>
+                <select class="form-control form-control-sm select2" name="selected_discipline">
+                    {% for i in disciplines %}
+                    <option value={{ i.id }}>{{ i.title }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <input class="form-control form-control-sm" id="format" list="format_options" name="format"/>
+                <datalist id="format_options">
+                    <option value="лекция"></option>
+                    <option value="пз"></option>
+                </datalist>
+            </td>
+            <td>
+                <select class="form-control form-control-sm select2" name="selected_teacher" style="width: 200px;">
+                    {% for i in teachers %}
+                    <option value="{{ i.id }}">{{ i.name }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <select class="form-control form-control-sm select2" name="selected_auditorium" style="width: 80px;">
+                    {% for i in auditoriums %}
+                    <option value={{ i.id }}>{{ i.number }}</option>
+                    {% endfor %}
+                </select>
+            </td>
+            <td>
+                <button class="btn btn-danger" style="font-size:18px; padding: 10px 20px" type="submit">Составить
+                </button>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</form>
+
+<h1 style="display: flex; flex-direction: row; justify-content: flex-end;">
+    <a class="btn btn-danger" href="{% url 'home' %}"
+       style="font-size:18px; padding: 10px 20px">Вернуться назад</a>
+</h1>
+
+{% if messages %}
+{% for message in messages %}
+<p class="alert alert-{{ message.tags }} mt-2 mb-2">
+    {{ message }}
+</p>
+{% endfor %}
+{% endif %}
+
+{% for table in tables %}
+<div>
+    {% render_schedule_table table.group table.query %}
+</div>
+{% endfor %}
+<script>
+    $(document).ready(function() {
+    function toggleBlocks() {
+        if ($('#is_temp').is(':checked')) {
+            $('#for_temp').show().css('display', 'flex');
+            $('#for_const').hide();
+        } else {
+            $('#for_temp').hide();
+            $('#for_const').show().css('display', 'flex');
+        }
+    }
+
+    $('#is_temp').on('change', toggleBlocks);
+
+    toggleBlocks();
+});
+</script>
+{% endblock %}

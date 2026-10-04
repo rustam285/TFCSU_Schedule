@@ -1,0 +1,89 @@
+{% extends 'main/base.html' %}
+{% load template_tags %}
+{% block title %}
+Редактирование дисциплин
+{% endblock %}
+{% block content %}
+<div>
+    <h1>Изменить данные про дисциплину</h1>
+    <div style="width:350px;">
+        <form method="post">
+            {% csrf_token %}
+            <div class="mb-2">
+                <label>Выберите дисциплину:</label>
+                <select class="form-control form-control-sm select2" id="discipline-input" name="id">
+                    <option value="">-- Выберите дисциплину --</option>
+                    {% for discipline in disciplines %}
+                    <option value="{{ discipline.id }}" data-id="{{ discipline.id }}"
+                            data-faculty="{{ discipline.faculty.id }}"
+                            data-title="{{ discipline.title }}"
+                            {% if chosen_id == discipline.id|stringformat:"s" %}selected{% endif %}>
+                        {{ discipline.title }}
+                    </option>
+                    {% endfor %}
+                </select>
+                <input type="hidden" id="id" name="id">
+            </div>
+
+            <div id="fields-container" class="mb-2" style="display: none;">
+                <div class="d-flex">
+                    <div class="my-2 mt-2 d-flex flex-column" style="width:200px; margin-left:0px">
+                        <h6>Дисциплина</h6>
+                        {{ form.title }}
+                    </div>
+                    <div class="m-2 d-flex flex-column">
+                        <h6>Направление</h6>
+                        {{ form.faculty }}
+                    </div>
+                </div>
+            </div>
+            <div class="mb-2">
+                <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Изменить
+                </button>
+                <a href="{% url 'discipline' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                    назад</a>
+            </div>
+        </form>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+    {% render_search_form query placeholder="Поиск по названию дисциплины..." %}
+    {% render_discipline_table disciplines %}
+    {% render_pagination page_obj query %}
+</div>
+<script>
+    function applyDisciplineSelection(selectedOption) {
+        const fieldsContainer = document.getElementById('fields-container');
+
+        if (selectedOption && selectedOption.value) {
+            document.getElementById('id').value = selectedOption.getAttribute('data-id');
+            fieldsContainer.style.display = 'flex';
+
+            const titleField = document.querySelector('[name="title"]');
+            const facultyField = $('[name="faculty"]');
+
+            if (titleField && facultyField) {
+                titleField.value = selectedOption.getAttribute('data-title');
+                facultyField.val(selectedOption.getAttribute('data-faculty')).trigger('change');
+            }
+        } else {
+            fieldsContainer.style.display = 'none';
+        }
+    }
+
+    $('#discipline-input').on("select2:select", function(e) {
+        applyDisciplineSelection(e.params.data.element);
+    });
+
+    // предвыбор из таблицы (?id=)
+    $(document).ready(function() {
+        const sel = document.getElementById('discipline-input');
+        if (sel && sel.value) {
+            applyDisciplineSelection(sel.selectedOptions[0]);
+        }
+    });
+</script>
+{% endblock %}

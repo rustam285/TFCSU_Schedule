@@ -1,0 +1,75 @@
+{% extends 'main/base.html'%}
+{% block title %}
+    Изменение занятий
+{% endblock %}
+{% block content %}
+{% load static %}
+<h1>Изменение занятий очной формы обучения</h1>
+<form method="GET">
+    {% csrf_token %}
+    <select class="form-control form-control-sm select2" id="groupId" name="chosen_group" style="width: 120px;">
+        {% for i in groups %}
+        <option  value="{{ i.id }}" {% if i.id == chosen_group.id %} selected {% endif %} >
+            {{ i.title }}
+        </option>
+        {% endfor %}
+    </select>
+    <select id="dayId" name="chosen_day">
+        {% for i in days %}
+        <option value="{{ i.0 }}" {% if i.0 == chosen_day %} selected {% endif %}>
+            {{ i.1 }}
+        </option>
+        {% endfor %}
+    </select>
+    <select id="weekId" name="chosen_week">
+        {% for i in weeks %}
+        <option value="{{ i }}" {% if i == chosen_week %} selected {% endif %}>
+            {{ i }}
+        </option>
+        {% endfor %}
+    </select>
+
+    <button class="btn btn-danger" style="font-size:18px; padding: 10px 20px" type="submit">Показать расписание</button>
+    <a class="btn btn-danger" href="{% url 'home' %}" style="font-size:18px; padding: 10px 20px">Вернуться
+        назад</a>
+</form>
+
+    <table border="1" cellpadding="20" cellspacing="20" class="table">
+        <thead>
+        <tr>
+            <th>№</th>
+            <th>Время</th>
+            <th>{{chosen_group}}, {{chosen_week}} неделя, {{chosen_day}}</th>
+            <th>Ауд.</th>
+            <th>Изм.</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for i in lessons_for_group %}
+        <tr>
+            <td>
+                {{ i.lesson.number }}
+            </td>
+            <td>
+                {{ i.time }}
+            </td>
+            <td>
+                <div style="overflow-wrap: break-word; white-space: normal;">
+                    {% if i.lesson.is_special %}*{% endif %}{{ i.lesson.discipline.title }}
+                    {% if i.lesson.format != '' %} ({{ i.lesson.format }}){% endif %},
+                    {{ i.lesson.teacher.name }}{% if i.lesson.teacher.title != '' %}, {{i.lesson.teacher.title }}{% endif %}
+                </div>
+            </td>
+            <td>
+                {{ i.lesson.auditorium.number }}
+            </td>
+            <td>
+                <a class="btn btn-outline-secondary" href="{% url 'for_edit_lesson' slot_id=i.id %}">
+                    <img src="{% static 'Images/gear.png' %}" height="20px" alt="Изменить">
+                </a><br>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

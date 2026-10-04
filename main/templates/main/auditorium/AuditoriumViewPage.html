@@ -1,0 +1,26 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Аудитории
+{% endblock %}
+{% block content %}
+<div style="display: flex; flex-direction:column; align-items:center; ">
+    <h1 class="m-3">Информация об аудиториях</h1>
+    <div class="m-3">
+        <a href="{% url 'add_auditory' %}" class='btn btn-danger' style="font-size:18px; padding: 10px 20px">Добавить</a>
+        <a href="{% url 'edit_auditory' %}" class='btn btn-danger' style="font-size:18px; padding: 10px 20px">Изменить</a>
+        <a href="{% url 'delete_auditory' %}" class='btn btn-danger' style="font-size:18px; padding: 10px 20px">Удалить</a>
+        <a href="{% url 'home' %}" class='btn btn-danger' style="font-size:18px; padding: 10px 20px">Вернуться
+            назад</a>
+    </div>
+    {% if messages %}
+    {% for message in messages %}
+    <p class="alert alert-{{ message.tags }} mt-2 mb-2">{{ message }}</p>
+    {% endfor %}
+    {% endif %}
+    {% render_search_form query placeholder="Поиск по номеру аудитории..." %}
+    {% render_auditory_table auditories %}
+    {% render_pagination page_obj query %}
+    <span>{{ error }}</span>
+</div>
+{% endblock %}

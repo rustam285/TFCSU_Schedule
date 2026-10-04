@@ -1,0 +1,32 @@
+{% load static %}
+<div style="width:1000px;">
+    <table border="1" cellpadding="10" cellspacing="10" class="table table-hover">
+        <thead>
+        <tr>
+            <th style="border-right: 1px solid; border-color: inherit;">Номер аудитории</th>
+            <th style="border-right: 1px solid; border-color: inherit;">Номер корпуса</th>
+            <th style="width: 110px;">Действия</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for auditory in auditories %}
+        <tr>
+            <td style="border-right: 1px solid; border-color: inherit;">
+                {{ auditory.number }}
+            </td>
+            <td style="border-right: 1px solid; border-color: inherit;"> {{ auditory.building }}</td>
+            <td>
+                <a class="btn btn-outline-secondary btn-sm"
+                   href="{% url 'edit_auditory' %}?id={{ auditory.id }}" title="Изменить">
+                    <img src="{% static 'Images/gear.png' %}" height="17px" alt="Изменить">
+                </a>
+                <a class="btn btn-outline-danger btn-sm"
+                   href="{% url 'delete_auditory' %}?id={{ auditory.id }}" title="Удалить">
+                    <img src="{% static 'Images/delete.png' %}" height="17px" alt="Удалить">
+                </a>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>

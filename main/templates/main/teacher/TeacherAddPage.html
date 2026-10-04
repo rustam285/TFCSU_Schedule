@@ -1,0 +1,23 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Добавить преподавателя
+{% endblock %}
+{% block content %}
+<div>
+    <h1>Добавить преподавателя</h1>
+    <div class="mb-3">
+        <form method="post">
+            {% csrf_token %}
+            {{ form.name }}<br>
+            {{ form.title }}<br>
+            <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Добавить</button>
+
+            <a href="{% url 'teachers' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Вернуться
+                назад</a>
+        </form>
+    </div>
+    {% render_teacher_table teachers "345px" %}
+    <span>{{ error }}</span>
+</div>
+{% endblock %}

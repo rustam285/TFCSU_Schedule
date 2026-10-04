@@ -1,0 +1,35 @@
+# Виртуальное окружение и кэш Python
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# База данных (содержит хэши паролей и личные данные — не публиковать!)
+db.sqlite3
+*.sqlite3-journal
+*.sqlite3-wal
+*.sqlite3-shm
+
+# Резервные копии базы (копии той же базы)
+backups/
+
+# Сгенерированная статика (collectstatic)
+staticfiles/
+
+# Переменные окружения / секреты
+.env
+.env.*
+
+# ОС и редакторы
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Служебные данные локальных инструментов
+.mimosa/
+.zcode/
+
+# npm-артефакты (bootstrap подключён локально в main/static)
+package.json
+package-lock.json
+node_modules/
