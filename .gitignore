@@ -29,6 +29,9 @@ Desktop.ini
 .mimosa/
 .zcode/
 
+# Папка экспериментов с VK-ботом (C# и тестовые скрипты)
+Тестирование вк бота/
+
 # npm-артефакты (bootstrap подключён локально в main/static)
 package.json
 package-lock.json

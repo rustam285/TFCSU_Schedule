@@ -115,6 +115,7 @@ main/
 | `teachers_views.py`, `group_views.py`, `faculty_view.py`, `auditory_views.py`, `discipline_views.py` | CRUD справочников (поиск `q`, пагинация 25/стр) |
 | `teacher_rule_views.py` | правила отображения дисциплин (эталон «страницы настроек») |
 | `notification_views.py` | страницы настройки уведомлений + JSON `/notifications/data/` |
+| `api_views.py` | JSON-API для внешних клиентов (VK-бот): `GET /api/groups/`, `GET /api/schedule/?group_id=&date_from=&date_to=` — только чтение, без CSRF (см. 8.5) |
 | `export_views.py` | `/export/schedule/?type=group\|teacher\|auditorium&id=..&format=xlsx\|docx\|pdf` |
 | `database_views.py` | `/export/` — полная база в Excel (pandas) |
 | `backup_views.py` | страница резервных копий + скачивание |
@@ -167,7 +168,8 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 `check_schedule_teachers`, `check_schedule_auditoriums`), `teacher_rules`, `backups`/`download_backup`,
 уведомления (`notification_settings`, `notification_teachers`, `notification_auditoriums`,
 `notification_teacher_settings`, `notification_auditorium_settings`).
-Вне /admin/: `export_excel` (`/export/`), `export_schedule` (`/export/schedule/`), `notifications_data` (`/notifications/data/`).
+Вне /admin/: `export_excel` (`/export/`), `export_schedule` (`/export/schedule/`), `notifications_data` (`/notifications/data/`),
+`api_groups` (`/api/groups/`), `api_schedule` (`/api/schedule/` — параметры `group_id`, `date_from`, `date_to`; см. 8.5).
 
 ## 6. Настройки и развёртывание
 
@@ -241,6 +243,21 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 - **Парсер:** `PARSER_HOST`/`PARSER_PORT` из env (дефолты — серверные 192.168.2.250:8001);
   локально запускать с `PARSER_HOST=127.0.0.1`.
 
+### 8.5. JSON-API для VK-бота («для копирования 7», `api_views.py`)
+
+- `GET /api/groups/` — все группы: `{id, title, form_of_education(+label), course,
+  faculty, updated_at}`; `GET /api/schedule/?group_id=&date_from=ГГГГ-ММ-ДД&date_to=` —
+  расписание группы по датам (постоянное + замены, чётность недель — как у гостевой
+  страницы). `date_to` по умолчанию = `date_from`, диапазон ≤ 31 дня (`MAX_RANGE_DAYS`).
+  Формирование дней — `constant_schedule_service.get_schedule_days_for_api()`.
+- Только GET (`@require_GET`), без CSRF и авторизации: csrfmiddlewaretoken нужен
+  только POST-формам (логин/админка/импорт), куку `csrftoken` Django держит 365 дней
+  (`CSRF_COOKIE_AGE`), но боту она не требуется.
+- Ошибки: `{"error": "текст"}` с 400 (параметры) / 404 (группа не найдена).
+- C#-модуль бота (клиент + форматтер сообщений VK + диалог с клавиатурой выбора
+  группы и парсингом «сегодня/завтра/неделя/даты/диапазоны») — в папке
+  «Тестирование вк бота» (в .gitignore), см. её README.md.
+
 ## 9. schedule-parser (отдельный сервис)
 
 - FastAPI + uvicorn, порт 8001: парсит xlsx-файлы расписаний (очная — `he_parser_service`,
@@ -275,6 +292,7 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 | 4 | Уведомления (+модель, миграция `0027_notificationsubscription`, migrate обязателен) | 3 |
 | 5 | Чекбоксы дней/недель и «Получить PDF» на `/admin/schedule/group/`, «Правила предметов» в «Сервисе» | 3, 4 |
 | 6 | Даты изменений по группам (Group.updated_at + миграция 0028), страницы импорта ВО/СПО, мультифайловый импорт (JSON-эндпоинт `.../save/`), env для host/port парсера | 3, 4, 5; migrate и collectstatic обязательны, перезапустить сайт и парсер |
+| 7 | JSON-API для VK-бота (`/api/groups/`, `/api/schedule/`; `api_views.py` + `get_schedule_days_for_api`) | 3–6 (фактически — любая актуальная копия); только перезапустить сайт |
 
 При новых изменениях — создавай следующую папку с тем же принципом
 (файлы с сохранением структуры + ИНСТРУКЦИЯ.md + отметить, нужен ли pip/migrate/collectstatic).
@@ -312,3 +330,6 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
    страницы импорта ВО/СПО; мультифайловый импорт (список записей, перезапись
    одинаковых групп, частичное сохранение, красная подсветка ошибок); URL парсера
    от текущего хоста; env для host/port парсера.
+7. «для копирования 7»: JSON-API для VK-бота (`/api/groups/`, `/api/schedule/` —
+   расписание группы за диапазон дат до 31 дня, без CSRF/авторизации);
+   C#-модуль бота в папке «Тестирование вк бота» (gitignore).
