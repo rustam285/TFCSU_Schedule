@@ -3,6 +3,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %} {% endblock %}</title>
         <!-- подключение js библиотеки -->
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
@@ -17,6 +18,8 @@
     <link href="{% static 'css/select2.min.css' %}" rel="stylesheet" />
     <!-- Подключение CSS UI библиотеки -->
     <link href="{% static 'css/jquery-ui.css' %}" rel="stylesheet"/>
+    <!-- Мобильная компоновка (подключается последним, чтобы перекрывать инлайн-стили) -->
+    <link href="{% static 'css/mobile.css' %}" rel="stylesheet"/>
         <!-- Подключите jQuery библиотеки -->
     <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
         <!-- Подключите JS библиотеки для Select2 -->
@@ -29,11 +32,13 @@
     <div class="csu shadow-lg d-flex flex-column flex-md-row align-items-center py-1 border-bottom px-3">
     {% if user.is_authenticated %}
     <a href="{% url 'home' %}" class="btn btn-outline-light">
-        Расписание занятий Троицкого филиала ЧелГУ
+        <span class="d-md-none">ТФ ЧелГУ</span>
+        <span class="d-none d-md-inline">Расписание занятий Троицкого филиала ЧелГУ</span>
     </a>
     {% else %}
     <a href="{% url 'guests' %}" class="btn btn-outline-light">
-        Расписание занятий Троицкого филиала ЧелГУ
+        <span class="d-md-none">ТФ ЧелГУ</span>
+        <span class="d-none d-md-inline">Расписание занятий Троицкого филиала ЧелГУ</span>
     </a>
     {% endif %}
     {% if request.path != '/login/'%}
