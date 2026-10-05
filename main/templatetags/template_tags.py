@@ -113,6 +113,14 @@ def render_schedule_table_for_group(group, table_query):
     }
 
 
+@register.inclusion_tag('components/tables/schedule_cards.html')
+def render_schedule_cards(table_query, aside_label='ауд.'):
+    return {
+        'table_query': table_query,
+        'aside_label': aside_label,
+    }
+
+
 @register.inclusion_tag('components/tables/schedule_table_for_teacher.html')
 def render_schedule_table_for_teacher(teacher, query):
     return {

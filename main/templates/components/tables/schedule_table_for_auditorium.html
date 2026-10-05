@@ -1,3 +1,6 @@
+{% load template_tags %}
+{# таблица — только для экранов >=768px; на мобиле вместо неё карточки #}
+<div class="d-none d-md-block">
 <table class="csu">
     <thead class="csu">
     <tr>
@@ -34,3 +37,5 @@
     {% endfor %}
     </tbody>
 </table>
+</div>
+{% render_schedule_cards table_query 'Группа:' %}
