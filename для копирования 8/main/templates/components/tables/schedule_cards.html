@@ -1,0 +1,34 @@
+{% comment %}
+Мобильное представление расписания: тот же плоский список week/day/schedule,
+что и в table.csu. Показывается вместо таблицы на экранах <768px (класс
+d-md-none), стили — в main/static/css/mobile.css (.sc-*).
+Параметры: table_query — список объектов week/day/schedule,
+aside_label — подпись последнего поля пары («ауд.» у группы/преподавателя,
+«Группа:» у аудитории).
+{% endcomment %}
+<div class="schedule-cards d-md-none">
+    {% for object in table_query %}
+        {% if object.type == "week" %}
+            <div class="sc-week">{{ object.data }}</div>
+        {% endif %}
+        {% if object.type == "day" %}
+            <div class="sc-day">{{ object.data }}</div>
+        {% endif %}
+        {% if object.type == "schedule" %}
+            {% for row in object.data %}
+                <div class="sc-lesson">
+                    <div class="sc-time">
+                        <span class="sc-number">{{ row.number }}</span>
+                        <span class="sc-hours">{{ row.time }}</span>
+                    </div>
+                    <div class="sc-body">
+                        <div class="sc-label">{{ row.lesson_label }}</div>
+                        {% if row.auditorium %}
+                            <div class="sc-aud">{{ aside_label }} {{ row.auditorium }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endfor %}
+</div>

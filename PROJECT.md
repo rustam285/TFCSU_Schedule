@@ -84,7 +84,8 @@ main/
 ├── templates/components/  # inclusion-теги: search_form, pagination, modal,
 │                      #   forms/, tables/ (в т.ч. admin_schedule_table, schedule_table_*)
 ├── templatetags/template_tags.py  # все inclusion-теги (render_*)
-├── static/            # css/js/Images (bootstrap, jquery, select2, csu.css — фирменные цвета)
+├── static/            # css/js/Images (bootstrap, jquery, select2, csu.css — фирменные цвета;
+│                      #   mobile.css — мобильная компоновка, подключается последним в base.html)
 └── management/commands/backup_db.py  # python manage.py backup_db — ручной бэкап
 ```
 
@@ -295,6 +296,7 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 | 5 | Чекбоксы дней/недель и «Получить PDF» на `/admin/schedule/group/`, «Правила предметов» в «Сервисе» | 3, 4 |
 | 6 | Даты изменений по группам (Group.updated_at + миграция 0028), страницы импорта ВО/СПО, мультифайловый импорт (JSON-эндпоинт `.../save/`), env для host/port парсера | 3, 4, 5; migrate и collectstatic обязательны, перезапустить сайт и парсер |
 | 7 | JSON-API для VK-бота (`/api/groups/`, `/api/schedule/`; `api_views.py` + `get_schedule_days_for_api`) | 3–6 (фактически — любая актуальная копия); только перезапустить сайт |
+| 8 | Мобильная версия гостевых страниц: viewport meta, `main/static/css/mobile.css`, карточки расписания `<768px` (`schedule_cards.html` + тег `render_schedule_cards`), формы фильтров/табы/шапка адаптивные, минимальные защиты админки | 3–7 (любая актуальная копия); **collectstatic + перезапуск сайта обязательны** (новый css), pip/migrate не нужны |
 
 При новых изменениях — создавай следующую папку с тем же принципом
 (файлы с сохранением структуры + ИНСТРУКЦИЯ.md + отметить, нужен ли pip/migrate/collectstatic).
@@ -335,3 +337,9 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 7. «для копирования 7»: JSON-API для VK-бота (`/api/groups/`, `/api/schedule/` —
    расписание группы за диапазон дат до 31 дня, без CSRF/авторизации);
    C#-модуль бота в папке «Тестирование вк бота» (gitignore).
+8. «для копирования 8»: мобильная версия — viewport meta (раньше отсутствовал),
+   `mobile.css` (медиа-правила компоновки, палитра не менялась), расписание на
+   экранах <768px карточками по дням (`schedule_cards.html`), адаптивные тулбары
+   и формы фильтров гостевых страниц, подсветка активного таба формы обучения,
+   компактная шапка («ТФ ЧелГУ» на мобиле); в админке — только защиты
+   (прокрутка широких таблиц, живой поиск во всю ширину). Десктоп не изменился.

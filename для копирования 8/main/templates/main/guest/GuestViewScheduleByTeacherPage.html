@@ -1,0 +1,65 @@
+{% extends 'main/base.html'%}
+{% load template_tags %}
+{% block title %}
+Расписание по преподавателям
+{% endblock %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+    <h1 class="mb-0" style="margin:10px">Просмотр расписания по преподавателям</h1>
+    <a href="{% url 'guests' %}" class="btn btn-outline-dark">
+        <Вернуться
+    </a>
+</div>
+<div>
+    <form method="GET">
+        {% csrf_token %}
+        <div class="row g-2 align-items-center mt-2 mb-2">
+            <div class="col-12 col-md-auto col-form-label text-md-end ps-md-2">Преподаватель:</div>
+            <div class="col-12 col-md-auto">
+                <select class="form-control form-control-sm select2" name="chosen_teacher" style="width: 200px;">
+                    {% for i in teachers %}
+                    <option value={{i.id}} {% if i.id == chosen_teacher.id %}selected{% endif %}>{{ i.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-6 col-md-auto">
+                <div class="d-md-none small text-muted mb-1">С</div>
+                <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}"
+                       class="form-control form-control-sm">
+            </div>
+            <div class="col-6 col-md-auto">
+                <div class="d-md-none small text-muted mb-1">По</div>
+                <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}"
+                       class="form-control form-control-sm">
+            </div>
+            <div class="col-12 col-md-auto d-grid">
+                <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Показать
+                    расписание
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+<hr><!-- горизонтальная линия -->
+{% if messages %}
+{% for message in messages %}
+<p class="alert alert-{{ message.tags }} mt-2 mb-2">
+    {{ message }}
+</p>
+{% endfor %}
+{% endif %}
+<div id="schedule">
+    {% if table_query %}
+    {% render_schedule_table_for_group chosen_teacher.name table_query %}
+    <div class="export-links" style="margin: 10px 0;">
+        Скачать:
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=teacher&id={{ chosen_teacher.id }}&format=docx">Word</a>
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=teacher&id={{ chosen_teacher.id }}&format=xlsx">Excel</a>
+        <a class="btn btn-sm btn-outline-dark"
+           href="{% url 'export_schedule' %}?type=teacher&id={{ chosen_teacher.id }}&format=pdf">PDF</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

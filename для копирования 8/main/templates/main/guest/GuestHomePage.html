@@ -1,0 +1,19 @@
+{% extends 'main/base.html' %}
+{% load template_tags %}
+{% block title %}
+    Расписание занятий
+{% endblock %}
+{% block content %}
+<div class="home-vcenter" style = "flex:1; display:flex;align-items:center; justify-content:center; flex-direction:column;">
+    <h1>Посмотреть расписание</h1>
+    <div class="bg-light border border-dark shadow rounded p-3 home-tiles" style="display:grid; margin:10px; justify-content: space-around; flex-direction:column; gap:10px; align-items:center;">
+        <a href="{% url 'guests_check_groups' %}" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">По группам</a>
+        <a href="{% url 'guests_check_preps' %}" class="btn btn-danger" role="button" style="font-size:18px; padding: 10px 20px" >По преподавателям</a>
+        <a href="{% url 'guests_check_auds' %}" class="btn btn-danger" role="button" style="font-size:18px; padding: 10px 20px" >По аудиториям</a>
+    </div>
+        <div class="home-updated" style="width:50%; text-align:center">
+            <div><strong>Последнее изменение расписания:</strong> {{ updated_at }}</div>
+            {% render_group_updated_at_list groups_by_form %}
+        </div>
+</div>
+{% endblock %}

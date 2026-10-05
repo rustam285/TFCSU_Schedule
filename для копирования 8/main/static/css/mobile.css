@@ -1,0 +1,209 @@
+/* ============================================================
+   mobile.css — мобильная компоновка сайта расписания.
+   Фирменные цвета и десктопный вид не меняются: правила либо
+   применяются на узких экранах через @media, либо относятся
+   к элементам, которые на десктопе скрыты (карточки расписания).
+   Палитра: бордовый #6f0724, тёмный #380216, красный #dc3545,
+   футер #212529, серые Bootstrap.
+   ============================================================ */
+
+/* ---------- Карточки расписания (видны вместо таблицы <768px) ---------- */
+.schedule-cards {
+    margin: 12px 0 4px;
+}
+
+.sc-week {
+    background-color: #dc3545;
+    color: #fff;
+    text-align: center;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    margin: 16px 0 8px;
+}
+
+.sc-week:first-child {
+    margin-top: 0;
+}
+
+.sc-day {
+    background-color: #380216;
+    color: #fff;
+    font-weight: 600;
+    padding: 7px 12px;
+    border-radius: 8px 8px 0 0;
+    margin-top: 10px;
+}
+
+/* день без пар (за ним сразу идёт следующая неделя) — закрытая плашка */
+.sc-day:last-child,
+.sc-day:has(+ .sc-week) {
+    border-radius: 8px;
+}
+
+.sc-lesson {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    background-color: #fff;
+    border: 1px solid #380216;
+    border-top: 0;
+    padding: 8px 10px;
+}
+
+.sc-lesson:last-child {
+    border-bottom-width: 2px;
+    border-radius: 0 0 8px 8px;
+}
+
+.sc-time {
+    flex: 0 0 76px;
+    text-align: center;
+}
+
+.sc-number {
+    display: inline-block;
+    min-width: 22px;
+    padding: 1px 7px;
+    background-color: #6f0724;
+    color: #fff;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.sc-hours {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    color: #380216;
+    white-space: nowrap;
+}
+
+.sc-body {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.sc-label {
+    overflow-wrap: break-word;
+    line-height: 1.35;
+}
+
+.sc-aud {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #6c757d;
+}
+
+/* ---------- Активный таб формы обучения (страница расписания по группе) ---------- */
+.btn-outline-dark.active-form-tab,
+.btn-outline-dark.active-form-tab:hover {
+    background-color: #380216;
+    border-color: #380216;
+    color: #fff;
+}
+
+/* ---------- Кнопки экспорта (Word/Excel/PDF) переносятся, а не распирают строку ---------- */
+.export-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+}
+
+/* ============================================================
+   Правила только для узких экранов
+   ============================================================ */
+@media (max-width: 991.98px) {
+    /* Широкие таблицы админки (width:1000px инлайном) прокручиваются
+       внутри страницы, а не распирают её по горизонтали */
+    #bg > .container {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+}
+
+@media (max-width: 767.98px) {
+    /* iOS не приближает страницу при фокусе, если шрифт поля >= 16px */
+    input.form-control,
+    select.form-control,
+    input[type="date"] {
+        font-size: 16px;
+    }
+
+    /* Select2: инлайн-ширина селектов (120/200px) на мобиле — во всю ширину */
+    .select2-container {
+        width: 100% !important;
+    }
+
+    .select2-container .select2-selection {
+        font-size: 16px;
+        height: auto;
+    }
+
+    /* Компактная шапка */
+    .csu .btn {
+        padding: 0.25rem 0.6rem;
+        font-size: 0.95rem;
+    }
+
+    /* Меньше воздуха над футером и под контентом */
+    #bg {
+        padding-bottom: 24px !important;
+    }
+
+    .bd-footer {
+        padding: 28px 0 36px !important;
+    }
+
+    /* строки футера не обёрнуты в .container: без этого их отрицательные
+       gutter-отступы Bootstrap распирают страницу по горизонтали */
+    .bd-footer .row {
+        --bs-gutter-x: 0;
+    }
+
+    /* Выдвижные панели почти во всю ширину экрана */
+    #admin-sidebar {
+        width: min(280px, calc(100vw - 32px)) !important;
+    }
+
+    #notifications-panel {
+        width: min(340px, calc(100vw - 16px)) !important;
+    }
+
+    /* Главная: плитки во всю ширину, контент прижат кверху.
+       У контейнера инлайновый display:grid + align-items:center —
+       поэтому переопределяем с !important */
+    .home-tiles {
+        grid-template-columns: 1fr !important;
+        align-items: stretch !important;
+        justify-content: stretch !important;
+        width: 100%;
+    }
+
+    .home-tiles .btn {
+        width: 100%;
+    }
+
+    .home-updated {
+        width: 100% !important;
+    }
+
+    .home-vcenter {
+        justify-content: flex-start !important;
+        padding-top: 1rem;
+    }
+
+    /* Живой поиск (админка, 18 страниц): поле во всю ширину,
+       кнопки переносятся на следующую строку */
+    .live-search-form {
+        width: 100% !important;
+        flex-wrap: wrap;
+    }
+
+    .live-search-form .form-control {
+        flex: 1 1 100%;
+    }
+}
