@@ -5,51 +5,137 @@
 {% endblock %}
 {% block content %}
 <h1 style="margin:10px">Просмотр расписания по группе</h1>
-<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-    <div class="d-flex flex-column flex-sm-row flex-sm-wrap gap-2">
-        <button class="btn btn-outline-dark" id="ftf">Очная форма обучения</button>
-        <button class="btn btn-outline-dark" id="mf">Очно-заочная форма обучения</button>
-        <button class="btn btn-outline-dark" id="ptf">Заочная форма обучения</button>
-    </div>
-    <a href="{% url 'guests' %}" class="btn btn-outline-dark">
-        <Вернуться
-    </a>
-</div>
-<hr><!-- горизонтальная линия -->
-<div id="full_time_form" {% if not is_full_time %}style="display:none" {% endif %}>
+{# Мобильная версия: настройки (табы форм обучения + фильтры) спрятаны в сворачиваемую #}
+{# панель, чтобы расписание начиналось сразу под заголовком. На десктопе (>=768px) #}
+{# панель всегда открыта — вид тот же, что раньше. При ошибке фильтра панель открыта. #}
+<button class="btn btn-outline-dark w-100 mb-2 d-md-none" type="button" data-bs-toggle="collapse"
+        data-bs-target="#scheduleSettings" aria-expanded="false" aria-controls="scheduleSettings">
+    ⚙️ Настройки расписания
+</button>
+<div class="collapse d-md-block {% if messages %}show{% endif %}" id="scheduleSettings">
     <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-        <h2 class="mb-0">Очная форма обучения</h2>
-        <form method="GET" class="flex-grow-1">
-            {% csrf_token %}
-            <div class="row g-2 align-items-center mt-0">
-                <div class="col-12 col-md-auto col-form-label text-md-end ps-md-2">Группа:</div>
-                <div class="col-12 col-md-auto">
-                    <select class="form-control form-control-sm select2" name="chosen_full_time_group"
-                            style="width: 120px;">
-                        {% for i in full_time_groups %}
-                        <option value={{i.id}} {% if i.id == chosen_full_time_group.id %}selected{% endif %}>{{ i.title }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-6 col-md-auto">
-                    <div class="d-md-none small text-muted mb-1">С</div>
-                    <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}"
-                           class="form-control form-control-sm">
-                </div>
-                <div class="col-6 col-md-auto">
-                    <div class="d-md-none small text-muted mb-1">По</div>
-                    <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}"
-                           class="form-control form-control-sm">
-                </div>
-                <div class="col-12 col-md-auto d-grid">
-                    <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
-                            name="is_full_time" value='1'>Показать расписание
-                    </button>
-                </div>
-            </div>
-        </form>
+        <div class="d-flex flex-column flex-sm-row flex-sm-wrap gap-2">
+            <button class="btn btn-outline-dark" id="ftf">Очная форма обучения</button>
+            <button class="btn btn-outline-dark" id="mf">Очно-заочная форма обучения</button>
+            <button class="btn btn-outline-dark" id="ptf">Заочная форма обучения</button>
+        </div>
+        <a href="{% url 'guests' %}" class="btn btn-outline-dark">
+            <Вернуться
+        </a>
     </div>
+    <hr><!-- горизонтальная линия -->
+
+    <div id="full_time_form_settings" {% if not is_full_time %}style="display:none" {% endif %}>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <h2 class="mb-0">Очная форма обучения</h2>
+            <form method="GET" class="flex-grow-1">
+                {% csrf_token %}
+                <div class="row g-2 align-items-center mt-0">
+                    <div class="col-12 col-md-auto col-form-label text-md-end ps-md-2">Группа:</div>
+                    <div class="col-12 col-md-auto">
+                        <select class="form-control form-control-sm select2" name="chosen_full_time_group"
+                                style="width: 120px;">
+                            {% for i in full_time_groups %}
+                            <option value={{i.id}} {% if i.id == chosen_full_time_group.id %}selected{% endif %}>{{ i.title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-auto">
+                        <div class="d-md-none small text-muted mb-1">С</div>
+                        <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}"
+                               class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6 col-md-auto">
+                        <div class="d-md-none small text-muted mb-1">По</div>
+                        <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}"
+                               class="form-control form-control-sm">
+                    </div>
+                    <div class="col-12 col-md-auto d-grid">
+                        <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
+                                name="is_full_time" value='1'>Показать расписание
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="mixed_form_settings" {% if not is_mixed %}style="display:none" {% endif %}>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <h2 class="mb-0">Очно-заочная форма обучения</h2>
+            <form method="GET" class="flex-grow-1">
+                {% csrf_token %}
+                <div class="row g-2 align-items-center mt-0">
+                    <div class="col-12 col-md-auto col-form-label text-md-end ps-md-2">Группа:</div>
+                    <div class="col-12 col-md-auto">
+                        <select class="form-control form-control-sm select2" name="chosen_mixed_group"
+                                style="width: 120px;">
+                            {% for i in mixed_groups %}
+                            <option value={{i.id}} {% if i.id == chosen_mixed_group.id %}selected{% endif %}>{{ i.title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-auto">
+                        <div class="d-md-none small text-muted mb-1">С</div>
+                        <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}"
+                               class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6 col-md-auto">
+                        <div class="d-md-none small text-muted mb-1">По</div>
+                        <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}"
+                               class="form-control form-control-sm">
+                    </div>
+                    <div class="col-12 col-md-auto d-grid">
+                        <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
+                                name="is_mixed" value="1">Показать расписание
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="part_time_form_settings" {% if not is_part_time %}style="display:none" {% endif %}>
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+            <h2 class="mb-0">Заочная форма обучения</h2>
+            <form method="GET" class="flex-grow-1">
+                {% csrf_token %}
+                <div class="row g-2 align-items-center mt-0">
+                    <div class="col-12 col-md-auto col-form-label text-md-end ps-md-2">Группа:</div>
+                    <div class="col-12 col-md-auto">
+                        <select class="form-control form-control-sm select2" name="chosen_part_time_group"
+                                style="width: 120px;">
+                            {% for group in part_time_groups %}
+                            <option value="{{ group.id }}" {% if group.id == chosen_part_time_group.id %} selected {% endif %}>
+                                {{ group.title }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-6 col-md-auto">
+                        <div class="d-md-none small text-muted mb-1">С</div>
+                        <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}"
+                               class="form-control form-control-sm">
+                    </div>
+                    <div class="col-6 col-md-auto">
+                        <div class="d-md-none small text-muted mb-1">По</div>
+                        <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}"
+                               class="form-control form-control-sm">
+                    </div>
+                    <div class="col-12 col-md-auto d-grid">
+                        <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
+                                name="is_part_time" value='1'>Показать расписание
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div id="full_time_form" {% if not is_full_time %}style="display:none" {% endif %}>
     {% if messages %}
     {% for message in messages %}
     <p class="alert alert-{{ message.tags }} mt-2 mb-2">
@@ -72,39 +158,6 @@
 </div>
 
 <div id="mixed_form" {% if not is_mixed %}style="display:none" {% endif %}>
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-        <h2 class="mb-0">Очно-заочная форма обучения</h2>
-        <form method="GET" class="flex-grow-1">
-            {% csrf_token %}
-            <div class="row g-2 align-items-center mt-0">
-                <div class="col-12 col-md-auto col-form-label text-md-end ps-md-2">Группа:</div>
-                <div class="col-12 col-md-auto">
-                    <select class="form-control form-control-sm select2" name="chosen_mixed_group"
-                            style="width: 120px;">
-                        {% for i in mixed_groups %}
-                        <option value={{i.id}} {% if i.id == chosen_mixed_group.id %}selected{% endif %}>{{ i.title }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-6 col-md-auto">
-                    <div class="d-md-none small text-muted mb-1">С</div>
-                    <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}"
-                           class="form-control form-control-sm">
-                </div>
-                <div class="col-6 col-md-auto">
-                    <div class="d-md-none small text-muted mb-1">По</div>
-                    <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}"
-                           class="form-control form-control-sm">
-                </div>
-                <div class="col-12 col-md-auto d-grid">
-                    <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
-                            name="is_mixed" value="1">Показать расписание
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
     {% if messages %}
     {% for message in messages %}
     <p class="alert alert-{{ message.tags }} mt-2 mb-2">
@@ -127,40 +180,6 @@
 </div>
 
 <div id="part_time_form" {% if not is_part_time %}style="display:none" {% endif %}>
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
-        <h2 class="mb-0">Заочная форма обучения</h2>
-        <form method="GET" class="flex-grow-1">
-            {% csrf_token %}
-            <div class="row g-2 align-items-center mt-0">
-                <div class="col-12 col-md-auto col-form-label text-md-end ps-md-2">Группа:</div>
-                <div class="col-12 col-md-auto">
-                    <select class="form-control form-control-sm select2" name="chosen_part_time_group"
-                            style="width: 120px;">
-                        {% for group in part_time_groups %}
-                        <option value="{{ group.id }}" {% if group.id == chosen_part_time_group.id %} selected {% endif %}>
-                            {{ group.title }}
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-6 col-md-auto">
-                    <div class="d-md-none small text-muted mb-1">С</div>
-                    <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}"
-                           class="form-control form-control-sm">
-                </div>
-                <div class="col-6 col-md-auto">
-                    <div class="d-md-none small text-muted mb-1">По</div>
-                    <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}"
-                           class="form-control form-control-sm">
-                </div>
-                <div class="col-12 col-md-auto d-grid">
-                    <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px"
-                            name="is_part_time" value='1'>Показать расписание
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
     {% if messages %}
     {% for message in messages %}
     <p class="alert alert-{{ message.tags }} mt-2 mb-2">
@@ -187,6 +206,9 @@
         function showForm(formId) {
             ["full_time_form", "mixed_form", "part_time_form"].forEach(function (id) {
                 document.getElementById(id).style.display = (id === formId) ? "block" : "none";
+                // блок настроек (h2 + фильтр) этой же формы в панели #scheduleSettings
+                const settings = document.getElementById(id + "_settings");
+                if (settings) settings.style.display = (id === formId) ? "block" : "none";
             });
         }
         function activateTab($tab) {

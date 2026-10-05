@@ -6,9 +6,16 @@
 {% block content %}
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
     <h1 class="mb-0" style="margin:10px">Просмотр расписания по аудиториям</h1>
-    <a href="{% url 'guests' %}" class="btn btn-outline-dark"><Вернуться</a>
+    <a href="{% url 'guests' %}" class="btn btn-outline-dark d-none d-md-inline-flex"><Вернуться</a>
 </div>
-<div>
+{# Мобильная версия: фильтр спрятан в сворачиваемую панель — расписание сразу под заголовком. #}
+{# На десктопе (>=768px) панель всегда открыта, вид как раньше. #}
+<button class="btn btn-outline-dark w-100 mb-2 d-md-none" type="button" data-bs-toggle="collapse"
+        data-bs-target="#scheduleSettings" aria-expanded="false" aria-controls="scheduleSettings">
+    ⚙️ Настройки расписания
+</button>
+<div class="collapse d-md-block {% if messages %}show{% endif %}" id="scheduleSettings">
+    <a href="{% url 'guests' %}" class="btn btn-outline-dark d-md-none w-100 mb-2"><Вернуться</a>
     <form method="GET">
     {% csrf_token %}
     <div class="row g-2 align-items-center mt-2 mb-2">

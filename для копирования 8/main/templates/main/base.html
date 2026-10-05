@@ -29,7 +29,7 @@
 </head>
 <body>
 <header>
-    <div class="csu shadow-lg d-flex flex-column flex-md-row align-items-center py-1 border-bottom px-3">
+    <div class="csu shadow-lg d-flex align-items-center justify-content-between py-1 border-bottom px-3">
     {% if user.is_authenticated %}
     <a href="{% url 'home' %}" class="btn btn-outline-light">
         <span class="d-md-none">ТФ ЧелГУ</span>
@@ -43,11 +43,11 @@
     {% endif %}
     {% if request.path != '/login/'%}
     {% if not user.is_authenticated %}
-      <nav class="d-inline-flex mt-2 mt-md-0 ms-md-auto">
+      <nav class="d-inline-flex">
         <a class="btn btn-outline-light" href="{% url 'login' %}">Войти</a>
       </nav>
     {% else %}
-    <nav class="d-inline-flex mt-2 mt-md-0 ms-md-auto" style="align-items:center; gap:10px;">
+    <nav class="d-inline-flex" style="align-items:center; gap:10px;">
     <button id="notifications-btn" type="button" title="Уведомления"
             style="position:relative; border:none; background:transparent; font-size:20px; line-height:1; cursor:pointer; padding: 2px;">
         &#128276;
