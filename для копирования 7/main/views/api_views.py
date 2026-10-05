@@ -24,9 +24,13 @@ from main.services.constant_schedule_service import get_schedule_days_for_api
 # сотни дней × несколько пар, бот такое всё равно не отправит одним сообщением.
 MAX_RANGE_DAYS = 31
 
+# Русские символы в JSON — как есть, а не \u0417\u0430... . Оба варианта валидны
+# для любых JSON-парсеров (C# читает и то, и то); этот просто читаемее в браузере/curl.
+JSON_DUMPS_PARAMS = {'ensure_ascii': False}
+
 
 def _error(message: str, status: int = 400) -> JsonResponse:
-    return JsonResponse({'error': message}, status=status)
+    return JsonResponse({'error': message}, status=status, json_dumps_params=JSON_DUMPS_PARAMS)
 
 
 def _parse_date(value: str, param_name: str) -> datetime.date:
@@ -58,7 +62,7 @@ def api_groups(request):
             'faculty': group.faculty.title if group.faculty_id else None,
             'updated_at': _group_updated_at_display(group),
         })
-    return JsonResponse({'groups': groups})
+    return JsonResponse({'groups': groups}, json_dumps_params=JSON_DUMPS_PARAMS)
 
 
 @require_GET
@@ -104,4 +108,4 @@ def api_schedule(request):
         'date_to': date_to.strftime('%Y-%m-%d'),
         'updated_at': _group_updated_at_display(group),
         'days': get_schedule_days_for_api(group.pk, dates),
-    })
+    }, json_dumps_params=JSON_DUMPS_PARAMS)
