@@ -4,23 +4,35 @@
 Расписание по аудиториям
 {% endblock %}
 {% block content %}
-<div style="display:flex; flex-direction: row; justify-content: space-between; align-items:center">
-    <h1 style="margin:10px">Просмотр расписания по аудиториям</h1>
-    <a href="{% url 'guests' %}" style="height:40px; margin: 10px" class="btn btn-outline-dark"><Вернуться</a>
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
+    <h1 class="mb-0" style="margin:10px">Просмотр расписания по аудиториям</h1>
+    <a href="{% url 'guests' %}" class="btn btn-outline-dark"><Вернуться</a>
 </div>
 <div>
     <form method="GET">
     {% csrf_token %}
-    <div style="margin: 10px">
-        Аудитория:
-        <select class="form-control form-control-sm select2" name="chosen_auditorium" style="width: 120px;">
-            {% for i in auditoriums %}
-            <option value={{i.id}} {% if i.id == chosen_auditorium.id %}selected{% endif %}>{{ i.number }}</option>
-            {% endfor %}
-        </select>
-        <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}">
-        <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}">
-        <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Показать расписание</button>
+    <div class="row g-2 align-items-center mt-2 mb-2">
+        <div class="col-12 col-md-auto col-form-label text-md-end ps-md-2">Аудитория:</div>
+        <div class="col-12 col-md-auto">
+            <select class="form-control form-control-sm select2" name="chosen_auditorium" style="width: 120px;">
+                {% for i in auditoriums %}
+                <option value={{i.id}} {% if i.id == chosen_auditorium.id %}selected{% endif %}>{{ i.number }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 col-md-auto">
+            <div class="d-md-none small text-muted mb-1">С</div>
+            <input type="date" name="chosen_date_start" value="{{ chosen_date_start }}"
+                   class="form-control form-control-sm">
+        </div>
+        <div class="col-6 col-md-auto">
+            <div class="d-md-none small text-muted mb-1">По</div>
+            <input type="date" name="chosen_date_end" value="{{ chosen_date_end }}"
+                   class="form-control form-control-sm">
+        </div>
+        <div class="col-12 col-md-auto d-grid">
+            <button type="submit" class="btn btn-danger" style="font-size:18px; padding: 10px 20px">Показать расписание</button>
+        </div>
     </div>
 </form>
 </div>
@@ -34,7 +46,7 @@
 {% endif %}
 <div>{% if table_query %}
     {% render_schedule_table_for_auditorium chosen_auditorium.number table_query %}
-    <div style="margin: 10px 0;">
+    <div class="export-links" style="margin: 10px 0;">
         Скачать:
         <a class="btn btn-sm btn-outline-dark"
            href="{% url 'export_schedule' %}?type=auditorium&id={{ chosen_auditorium.id }}&format=docx">Word</a>
