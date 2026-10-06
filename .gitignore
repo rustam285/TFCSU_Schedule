@@ -32,6 +32,9 @@ Desktop.ini
 # Папка экспериментов с VK-ботом (C# и тестовые скрипты)
 Тестирование вк бота/
 
+# Локальная документация API для VK-бота (не публикуется)
+API.md
+
 # npm-артефакты (bootstrap подключён локально в main/static)
 package.json
 package-lock.json
