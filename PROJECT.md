@@ -18,14 +18,18 @@
 
 | Команда | Что делает |
 |---|---|
-| `запуск_локально.bat` | локально: pip install, пытается запустить парсер (упадёт из-за IP сервера, см. раздел 9), `manage.py runserver` (127.0.0.1:8000) |
-| `запуск_сервера.bat` | прод: waitress на 0.0.0.0:8100 (+инструкции по первому запуску в шапке файла) |
-| `запуск_на_сервер.bat` | полный запуск на сервере: pip install, парсер, `runserver 192.168.2.250:8100` |
+| `запуск_локально.bat` | локально: pip install, парсер через `schedule-parser\start_local.bat` (127.0.0.1:8001), `manage.py runserver` (127.0.0.1:8000) |
+| `запуск_сервера.bat` | прод: требует `server_env.bat` (секреты, см. ниже), запускает парсер отдельным окном (`schedule-parser\start.bat`) + waitress 0.0.0.0:8100; вывод пишет в `logs\site.log`, при падении окно остаётся с кодом ошибки и хвостом лога |
+| `schedule-parser\start.bat` / `start_local.bat` | парсер на сервере (лог `schedule-parser\logs\parser.log`) / локально (127.0.0.1, автоперезапуск при правках) |
+| `schedule-parser\install.bat` | разовая установка зависимостей парсера (pip при каждом запуске НЕ выполняется) |
 | `.venv\Scripts\python.exe -m django <команда> --settings=djangoProject.settings` | формат запуска management-команд (всегда с явным settings) |
 
 Настройки через переменные окружения (см. `djangoProject/settings.py`):
 `DJANGO_SECRET_KEY`, `DJANGO_DEBUG` (по умолчанию True), `DJANGO_ALLOWED_HOSTS`
-(по умолчанию `tfcsu.ru,localhost,127.0.0.1`).
+(по умолчанию `tfcsu.ru,localhost,127.0.0.1`). **На сервере** их задаёт локальный
+`server_env.bat` (шаблон — `server_env.bat.example`; сам файл в gitignore, его читает
+`запуск_сервера.bat`). НЕ задавать через `setx`: задачи планировщика от SYSTEM этих
+переменных не видят (см. раздел 12).
 
 ## 3. Структура корня
 
@@ -112,12 +116,12 @@ main/
 | `guests_views.py` | гостевые страницы: главная, расписание по группам/преподавателям/аудиториям (диапазон дат) |
 | `admin_views.py` | главная админки; **просмотр по группе** (`render_schedule_by_group_page` + `return_fields_for_choice`/`add_table_data` — чекбоксы дней/недель); просмотр по преподавателям/аудиториям |
 | `schedule_views.py` | добавление/изменение/удаление расписания очной формы; **импорт ВО/СПО** — две страницы (`render_import_schedule_page_vo/spo`) + JSON-эндпоинт `save_imported_full_time_schedules` (мультифайловый импорт, см. 8.4) |
-| `part_time_schedule_views.py`, `mixed_schedule_views.py` | то же для заочной и очно-заочной |
+| `part_time_schedule_views.py`, `mixed_schedule_views.py` | то же для заочной и очно-заочной (импорт — мультифайловый, JSON-эндпоинты `.../save/`, см. 8.6) |
 | `teachers_views.py`, `group_views.py`, `faculty_view.py`, `auditory_views.py`, `discipline_views.py` | CRUD справочников (поиск `q`, пагинация 25/стр) |
 | `teacher_rule_views.py` | правила отображения дисциплин (эталон «страницы настроек») |
 | `notification_views.py` | страницы настройки уведомлений + JSON `/notifications/data/` |
 | `api_views.py` | JSON-API для внешних клиентов (VK-бот): `GET /api/groups/`, `GET /api/schedule/?group_id=&date_from=&date_to=` — только чтение, без CSRF (см. 8.5) |
-| `export_views.py` | `/export/schedule/?type=group\|teacher\|auditorium&id=..&format=xlsx\|docx\|pdf` |
+| `export_views.py` | `/export/schedule/?type=group\|teacher\|auditorium&id=..&format=xlsx\|docx\|pdf` (+ `&date_from=&date_to=` — полное расписание за период, см. 8.6) |
 | `database_views.py` | `/export/` — полная база в Excel (pandas) |
 | `backup_views.py` | страница резервных копий + скачивание |
 | `auth_views.py` | вход/выход |
@@ -164,18 +168,23 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 расписания (`schedule`, `edit_schedule`, `delete_schedule`, `for_edit_lesson`,
 `import_schedule_vo`, `import_schedule_spo`, `import_schedule_save` (старый `import_schedule` — редирект на ВО),
 `add_part_time_schedule`, `edit_part_time_lesson`, `import_part_time_schedule`,
-`delete_part_time_schedule`, `add_mixed_schedule`, `edit_mixed_schedule`, `edit_mixed_lesson`,
-`import_mixed_schedule`, `delete_mixed_schedule`), просмотр (`check_schedule_group`,
+`import_part_time_schedule_save` (JSON), `delete_part_time_schedule`, `add_mixed_schedule`,
+`edit_mixed_schedule`, `edit_mixed_lesson`, `import_mixed_schedule`,
+`import_mixed_schedule_save` (JSON), `delete_mixed_schedule`), просмотр (`check_schedule_group`,
 `check_schedule_teachers`, `check_schedule_auditoriums`), `teacher_rules`, `backups`/`download_backup`,
 уведомления (`notification_settings`, `notification_teachers`, `notification_auditoriums`,
 `notification_teacher_settings`, `notification_auditorium_settings`).
-Вне /admin/: `export_excel` (`/export/`), `export_schedule` (`/export/schedule/`), `notifications_data` (`/notifications/data/`),
+Вне /admin/: `export_excel` (`/export/`), `export_schedule` (`/export/schedule/` — без дат сетка
+семестра, с `date_from`/`date_to` — расписание за период), `notifications_data` (`/notifications/data/`),
 `api_groups` (`/api/groups/`), `api_schedule` (`/api/schedule/` — параметры `group_id`, `date_from`, `date_to`; см. 8.5).
 
 ## 6. Настройки и развёртывание
 
 - Прод: waitress (`запуск_сервера.bat`, порт 8100), whitenoise, `DJANGO_DEBUG=False`,
-  `DJANGO_SECRET_KEY` и `DJANGO_ALLOWED_HOSTS` заданы на сервере (см. DEPLOY.md).
+  `DJANGO_SECRET_KEY` и `DJANGO_ALLOWED_HOSTS` — из `server_env.bat` на сервере (см. DEPLOY.md).
+- Логи на проде: `logs\site.log` (вывод waitress), `logs\django.log` (предупреждения/ошибки
+  Django, ротация 5 МБ × 3, настраивается в `settings.py` → LOGGING), `schedule-parser\logs\parser.log`.
+  При падении сайта/парсера окно не закрывается — в нём код ошибки и хвост лога.
 - Статика: `collectstatic` в `staticfiles/` (нужен, только если менялись файлы в `main/static`).
 - Обновление на сервере — через **папки «для копирования N»** (раздел 11): скопировать поверх
   с сохранением структуры, при необходимости `pip install -r requirements.txt` / `migrate`, перезапустить.
@@ -204,6 +213,10 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
   Excel: поворот дней на 90°, ширины колонок как в бумажном бланке.
 - Кнопки — на гостевых страницах под таблицей; в админке — кнопка «Получить PDF»
   на `/admin/schedule/group/`.
+- Отдельный режим — «полное расписание за период» (постоянное + замены по датам,
+  ≤ 30 дней, многостраничный документ): см. 8.6. Для заочной/очно-заочной форм это
+  единственный содержательный экспорт — их расписание живёт в TemporarySchedule,
+  семестровый бланк по ConstantSchedule получается пустым.
 - PDF-шрифт: системный `C:\Windows\Fonts\times.ttf` (фолбэки — arial, tahoma, dejavu).
 
 ### 8.2. Уведомления (`NotificationSubscription`, `notification_service.py`, `notification_views.py`)
@@ -261,16 +274,56 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
   группы и парсингом «сегодня/завтра/неделя/даты/диапазоны») — в папке
   «Тестирование вк бота» (в .gitignore), см. её README.md.
 
+### 8.6. Экспорт «за период» + пакетный импорт заочников/очно-заочников («для копирования 10»)
+
+- **Экспорт за период:** на гостевых страницах (группа ×3 формы, преподаватель, аудитория)
+  под кнопками «Скачать» — сворачиваемое меню (компонент `export_range_menu.html`,
+  inclusion-тег `render_export_range_menu`): даты «с—по» + Word/Excel/PDF, даты
+  предзаполняются диапазоном страницы. `/export/schedule/` с `date_from`/`date_to`
+  (ГГГГ-ММ-ДД, обе обязательны, ≤ 30 дней, как просмотр) строит документ по датам:
+  постоянное + замены, как на странице просмотра (`get_table_query_for_*_by_dates` →
+  `_assemble_date_range_grid` → `build_date_range_{xlsx,docx,pdf}_response` в
+  `export_service.py`). Дни — секциями («Понедельник, 05.10.2026»), документ
+  многостраничный (docx/pdf без «вписывания в одну страницу»); пустой диапазон —
+  ошибка 400. Для аудитории 4-я колонка — группы. Имя файла:
+  `ТФИ-401_с_01.11.2026_по_30.11.2026.pdf`.
+- **Пакетный импорт заочников:** `admin/import/part_time_schedule/` — мультифайловая
+  страница по образцу очной (записи, upsert по набору групп, красная подсветка ошибок),
+  но сетка динамическая по датам: ключ ячейки `ДД.ММ.ГГГГ_№`; дату или пару можно
+  добавить/убрать вручную. Сохранение — JSON `admin/import/part_time_schedule/save/`
+  (`save_imported_part_time_schedules`): записи валидируются независимо, расписание
+  групп записи **перезаписывается полностью** (`Lesson…delete()` + `TemporarySchedule`
+  по датам файла); проверяется форма обучения «з». Валидатор ячеек —
+  `validate_import_input_values_for_date` (префикс «Пара ДД.ММ.ГГГГ, …»).
+- **Пакетный импорт очно-заочников:** `admin/import/mixed_schedule/` — статическая
+  сетка 2 недели × 7 дней × 8 пар, файлы парсятся как `full_time` (недельная сетка,
+  дат в файлах нет). Интервал дат: поля «по умолчанию» на странице + правка у каждой
+  записи в списке. Сохранение — JSON `admin/import/mixed_schedule/save/`
+  (`save_imported_mixed_schedules`): внутри интервала записи старое расписание групп
+  удаляется (`delete_mixed_schedule_by_date_interval`), пары сетки «разворачиваются»
+  на подходящие даты интервала (чётность недели + день недели) как `TemporarySchedule`;
+  проверяется форма обучения «о-з». Ограничения длины интервала нет (бывает семестр).
+- JS: `main/static/js/importPartTimeBatch.js`, `importMixedBatch.js` (старые
+  однофайловые `importPartTimeSchedule.js`/`importMixedSchedule.js` удалены).
+- Аудитория из JSON парсера нормализуется общей `util.normalize_import_auditorium`
+  (используется всеми тремя save-эндпоинтами).
+
 ## 9. schedule-parser (отдельный сервис)
 
 - FastAPI + uvicorn, порт 8001: парсит xlsx-файлы расписаний (очная — `he_parser_service`,
   заочная — `part_time_parser_service`, све — `sve_parser_service`; модели в `app/service/model`,
   роуты в `app/web/router/scheduler_parser_routes.py`).
-- Свой `requirements.txt` (fastapi, uvicorn, pydantic, xlrd), ставится системным pip
-  (`start.bat`: pip install + python main.py).
-- **Внимание:** в `schedule-parser/main.py` хост захардкожен `192.168.2.250` (IP сервера) —
-  локально падает с WinError 10049. Локально запускать, поменяв на `0.0.0.0`/`127.0.0.1`.
-- Сайт к парсеру по сети НЕ обращается (импорт работает через страницы импорта сайта).
+- Свой `requirements.txt` (fastapi, uvicorn, pydantic, python-multipart, xlrd — без `fastapi[all]`,
+  чтобы не тянуть десяток ненужных пакетов). Ставится системным pip ОДИН РАЗ (`install.bat`);
+  `start.bat` при запуске ничего не устанавливает (осенью 2026 pip на серверном Python 3.15
+  падал при каждом старте — нет wheel-ов pydantic-core для 3.15, компилятора на сервере нет).
+  Python для парсера — не новее 3.13.
+- Хост по умолчанию `192.168.2.250` (IP сервера), переопределяется env `PARSER_HOST`/`PARSER_PORT`.
+  Локально — `start_local.bat` (ставит `PARSER_HOST=127.0.0.1` и `PARSER_RELOAD=1` — dev-режим
+  с автоперезапуском; на сервере reload выключен).
+- Вывод парсера пишется в `schedule-parser\logs\parser.log`; при падении окно остаётся с ошибкой.
+- К парсеру обращается БРАУЗЕР со страниц импорта (`fetch` на `:8001`, хост от
+  `window.location.hostname`), Django-бэкенд к парсеру по сети не ходит.
 
 ## 10. Тестирование и проверки
 
@@ -297,6 +350,8 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 | 6 | Даты изменений по группам (Group.updated_at + миграция 0028), страницы импорта ВО/СПО, мультифайловый импорт (JSON-эндпоинт `.../save/`), env для host/port парсера | 3, 4, 5; migrate и collectstatic обязательны, перезапустить сайт и парсер |
 | 7 | JSON-API для VK-бота (`/api/groups/`, `/api/schedule/`; `api_views.py` + `get_schedule_days_for_api`) | 3–6 (фактически — любая актуальная копия); только перезапустить сайт |
 | 8 | Мобильная версия гостевых страниц: viewport meta, `main/static/css/mobile.css`, карточки расписания `<768px` (`schedule_cards.html` + тег `render_schedule_cards`), формы фильтров/табы/шапка адаптивные, минимальные защиты админки | 3–7 (любая актуальная копия); **collectstatic + перезапуск сайта обязательны** (новый css), pip/migrate не нужны |
+| 9 | Стабилизация запуска: `server_env.bat` для секретов (видны задаче от SYSTEM — уходит «Session data corrupted»), лог-файлы `logs\site.log` / `logs\django.log` / парсер `logs\parser.log` + окно с ошибкой при падении, `chcp 65001`+`PYTHONUTF8=1` (кириллица в консоли), pip не при каждом запуске (`install.bat` парсера), `fastapi[all]` → компактный набор, reload парсера только локально, JS заочного/очно-заочного импорта: проверка файла + хост от `window.location.hostname`; удалён `запуск_на_сервер.bat` | 3–8 (любая актуальная копия); **обязательны**: создать `server_env.bat` (ключ — прежний с сервера), collectstatic (правки JS), перезапуск сайта и парсера; pip — только `schedule-parser\install.bat`, migrate не нужен, разово почистить сессии |
+| 10 | Экспорт полного расписания за период (≤ 30 дней, постоянное + замены; меню под кнопками «Скачать» на гостевых страницах, см. 8.6) + пакетный мультифайловый импорт заочников (полная перезапись) и очно-заочников (сетка + интервал дат, перезапись в интервале); старые однофайловые JS удалены | 3–9 (любая актуальная копия); **обязательны**: collectstatic (новые JS) + перезапуск сайта; на сервере удалить `main\static\js\importPartTimeSchedule.js` и `importMixedSchedule.js`; pip/migrate не нужны |
 
 При новых изменениях — создавай следующую папку с тем же принципом
 (файлы с сохранением структуры + ИНСТРУКЦИЯ.md + отметить, нужен ли pip/migrate/collectstatic).
@@ -318,6 +373,16 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
 - select2 глобально инициализируется в `base.html`; класс `.select2` на селектах достаточен.
 - `message_constants.DEBUG: 'debug'` и ERROR→`danger` — в settings (шаблоны используют `alert-{{ message.tags }}`).
 - Кодировка файлов — UTF-8; в Windows-консоли для кириллицы нужен `chcp 65001` или reconfigure.
+- **.bat-файлы: UTF-8 БЕЗ BOM и с CRLF.** BOM ломает первую строку (`@echo off` превращается
+  в команду «я╗┐@echo» — так было на проде), LF-only рискован для меток/goto. Блокнот при
+  «Сохранить» легко добавляет BOM — проверяй первые байты (EF BB BF быть не должно).
+- **Секреты на сервере — только через `server_env.bat`**, не через `setx`: setx кладёт
+  переменные в окружение пользователя, а сайт запускается планировщиком от SYSTEM и их
+  не видит. Симптом смены/потери `DJANGO_SECRET_KEY`: волна «Session data corrupted»
+  в логах и разлогины; после устранения разово `manage.py clearsessions`.
+- **Python 3.15 на сервере**: для pydantic-core нет готовых wheel-ов, pip пытается собирать
+  исходники компилятором, которого нет. Ничего не переустанавливать без необходимости;
+  для чистой установки — Python ≤ 3.13.
 
 ## 13. Хронология изменений (кратко)
 
@@ -343,3 +408,19 @@ ERROR маппится на `danger`). Списки: `render_search_form` + `ren
    и формы фильтров гостевых страниц, подсветка активного таба формы обучения,
    компактная шапка («ТФ ЧелГУ» на мобиле); в админке — только защиты
    (прокрутка широких таблиц, живой поиск во всю ширину). Десктоп не изменился.
+9. Стабилизация запуска на проде (после разбора падений октября 2026): `server_env.bat`
+   вместо setx (ключ больше не теряется — уходит «Session data corrupted»), лог-файлы
+   `logs\site.log` / `logs\django.log` / `schedule-parser\logs\parser.log` + окно с ошибкой
+   при падении, `chcp 65001`+`PYTHONUTF8=1` во всех батниках (кириллица в консоли),
+   pip при каждом запуске убран (у парсера — отдельный `install.bat`), `fastapi[all]` →
+   `fastapi`+`python-multipart`, reload парсера только локально, проверка «файл выбран»
+   и хост от `window.location.hostname` в JS заочного/очно-заочного импорта (источник 422),
+   удалён устаревший `запуск_на_сервер.bat` (поднимал дев-`runserver` на прод-порту).
+   Пакет собран в папке «для копирования 9».
+10. «для копирования 10»: экспорт полного расписания за период (≤ 30 дней, постоянное +
+   замены; сворачиваемое меню под кнопками «Скачать» на гостевых страницах всех трёх
+   типов; заочная/очно-заочная формы получают содержательный экспорт вместо пустого
+   семестрового бланка); пакетный мультифайловый импорт заочной (динамическая сетка
+   по датам, полная перезапись) и очно-заочной (недельная сетка + интервал дат
+   «по умолчанию» с правкой у записи, перезапись только в интервале) форм — по образцу
+   очной; старые однофайловые страницы импорта и их JS удалены.
