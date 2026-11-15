@@ -1,8 +1,11 @@
 import copy
 import datetime
+import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.http import JsonResponse, HttpResponseNotAllowed
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -16,7 +19,7 @@ from ..services.mixed_schedule_service import delete_mixed_schedule_by_date_inte
 from ..services.temporary_schedule_service import delete_lessons_by_date, get_query_for_table_by_date, update, \
     get_by_group_and_date, get_by_pk
 from ..services.util import get_week_number, get_weekday_by_date, convert_string_to_date, get_data_for_schedule, \
-    get_error_messages
+    get_dates, get_error_messages, normalize_import_auditorium
 from ..services.validation_service import validate_input_dates_correct, validate_import_group_title, \
     validate_import_input_values
 
@@ -156,71 +159,162 @@ def render_edit_page_for_chosen_lesson(request, slot_id):
         return redirect(url)
 
 
+MIXED_IMPORT_NUMBERS = {1.0, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0}
+
+
 @csrf_exempt
 @login_required
 def render_import_page(request):
-    data = get_data_for_schedule()
-    data["numbers"] = range(1, 9)
-    if request.method == "GET":
+    """Страница мультифайлового импорта расписания очно-заочной формы."""
+    if request.method == 'GET':
+        data = get_data_for_schedule()
+        data['numbers'] = range(1, 9)
         return render(request, 'main/schedule_import/ScheduleMixedImportPage.html', context=data)
-    if request.method == "POST":
-        schedule = []
-        start_date, end_date = request.POST.get('schedule_date_start'), request.POST.get('schedule_date_end')
-        needed_group = request.POST.get('needed_group')
-        try:
-            validate_input_dates_correct(start_date, end_date)
-            validate_import_group_title(needed_group)
-        except Exception as e:
-            for error in get_error_messages(e):
-                messages.error(request, error)
+    return HttpResponseNotAllowed(['GET'])
+
+
+@csrf_exempt
+@login_required
+def save_imported_mixed_schedules(request):
+    """Сохранение результатов мультифайлового импорта очно-заочного расписания (JSON).
+
+    Запрос: {"entries": [{"groups": ["ТФИ-301"], "date_start": "ГГГГ-ММ-ДД",
+        "date_end": "ГГГГ-ММ-ДД", "cells": {"<неделя>_<день>_<№ пары>":
+        {is_special, discipline, format, teacher, auditorium}, ...}}, ...]}
+
+    Файлы очно-заочной формы содержат недельную сетку на 2 недели (как очные),
+    дат в них нет — интервал дат задаётся на странице. Пары сетки
+    «разворачиваются» на каждую подходящую дату интервала (чётность недели +
+    день недели) и сохраняются как TemporarySchedule. Старое расписание групп
+    удаляется только внутри интервала записи. Записи валидируются независимо:
+    сохраняются только безошибочные; ошибки — с ключом "_group" или ячейки.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Ожидается POST-запрос'}, status=405)
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Некорректный JSON в запросе'}, status=400)
+    entries = payload.get('entries')
+    if not isinstance(entries, list) or not entries:
+        return JsonResponse({'error': 'Нет записей для сохранения'}, status=400)
+
+    data = get_data_for_schedule()
+    day_labels = dict(data['week_days'])  # 'пн' -> 'Понедельник'
+    week_numbers = set(data['week_numbers'])  # {'1', '2'}
+
+    results = []
+    to_save = []
+    for index, entry in enumerate(entries):
+        groups = entry.get('groups')
+        if isinstance(groups, str):
+            groups = [part.strip() for part in groups.split(',')]
+        elif isinstance(groups, list):
+            groups = [str(part).strip() for part in groups]
         else:
-            i_date = convert_string_to_date(start_date)
-            while i_date != convert_string_to_date(end_date) + datetime.timedelta(days=1):
+            groups = []
+        # уникальные названия с сохранением порядка
+        groups = list(dict.fromkeys(g for g in groups if g))
+
+        errors = {}
+        valid_groups = []
+        for group_title in groups:
+            try:
+                validate_import_group_title(group_title)
+            except Exception as e:
+                errors.setdefault('_group', []).extend(get_error_messages(e))
+                continue
+            if group_service.get_by_title(group_title).form_of_education != 'о-з':
+                errors.setdefault('_group', []).append(
+                    f'Группа не относится к очно-заочной форме обучения: {group_title}')
+            else:
+                valid_groups.append(group_title)
+
+        date_start = str(entry.get('date_start') or '').strip()
+        date_end = str(entry.get('date_end') or '').strip()
+        start = end = None
+        if not date_start or not date_end:
+            errors.setdefault('_group', []).append('Не задан интервал дат — укажите обе даты (с и по)')
+        else:
+            try:
+                validate_input_dates_correct(date_start, date_end)
+                start = convert_string_to_date(date_start)
+                end = convert_string_to_date(date_end)
+            except Exception as e:
+                errors.setdefault('_group', []).extend(get_error_messages(e))
+
+        prepared = []
+        for key, cell in (entry.get('cells') or {}).items():
+            parts = str(key).split('_')
+            if len(parts) != 3 or parts[0] not in week_numbers or parts[1] not in day_labels:
+                continue
+            week, day_code, number_str = parts
+            try:
+                number = float(number_str.replace(',', '.'))
+            except ValueError:
+                continue
+            if number not in MIXED_IMPORT_NUMBERS:
+                continue
+            discipline = str(cell.get('discipline') or '').strip()
+            teacher = str(cell.get('teacher') or '').strip()
+            fmt = str(cell.get('format') or '').strip()
+            auditorium = normalize_import_auditorium(cell.get('auditorium'))
+            if not (discipline or teacher or fmt or auditorium):
+                continue
+            try:
+                validate_import_input_values(', '.join(groups), week, day_labels[day_code],
+                                              number_str.replace('.0', ''), discipline,
+                                              teacher, auditorium)
+                prepared.append({'number': number,
+                                 'is_special': bool(cell.get('is_special')),
+                                 'discipline': discipline, 'format': fmt,
+                                 'teacher': teacher, 'auditorium': auditorium,
+                                 'week_day': day_code, 'week_number': int(week)})
+            except Exception as e:
+                errors.setdefault(str(key), []).extend(get_error_messages(e))
+
+        if valid_groups and start and end and not errors and not prepared:
+            errors.setdefault('_group', []).append('В файле не найдено ни одной пары — сохранять нечего')
+
+        result = {'index': index, 'groups': groups, 'errors': errors}
+        if errors or not valid_groups or start is None:
+            result['status'] = 'failed'
+        else:
+            result['status'] = 'saved'
+            to_save.append({'groups': valid_groups, 'prepared': prepared,
+                            'start': start, 'end': end})
+        results.append(result)
+
+    if to_save:
+        # страховочная копия базы перед перезаписью расписаний групп
+        create_backup(reason='import')
+    for item in to_save:
+        # одна запись = одна колонка файла: все её группы делят общую сетку;
+        # перезапись — только внутри интервала записи
+        with transaction.atomic():
+            for group_title in item['groups']:
+                delete_mixed_schedule_by_date_interval(group_title, item['start'], item['end'])
+            by_slot = {}
+            for cell in item['prepared']:
+                by_slot.setdefault((cell['week_number'], cell['week_day']), []).append(cell)
+            for i_date in get_dates(item['start'], item['end']):
                 week = get_week_number(i_date)
-                day = data["week_days"][get_weekday_by_date(i_date)][0]
-                for lesson_number in data["numbers"]:
-                    prefix = f'{week}_{day}_{lesson_number}'
-                    if (request.POST.get(f'{prefix}_discipline') == '' and
-                            request.POST.get(f'{prefix}_teacher') == '' and
-                            request.POST.get(f'{prefix}_format') == '' and
-                            request.POST.get(f'{prefix}_auditorium') == ''):
-                        continue
-                    try:
-                        validate_import_input_values(needed_group, week, day, lesson_number,
-                                                     request.POST.get(f'{prefix}_discipline'),
-                                                     request.POST.get(f'{prefix}_teacher'),
-                                                     request.POST.get(f'{prefix}_auditorium'))
+                day = data['week_days'][get_weekday_by_date(i_date)][0]
+                for cell in by_slot.get((week, day), []):
+                    for group_title in item['groups']:
                         new_lesson = Lesson(
-                            number=lesson_number,
-                            is_special=bool(request.POST.get(f'{prefix}_is_special')),
-                            discipline=discipline_service.get_by_title(
-                                request.POST.get(f'{prefix}_discipline')),
-                            format=request.POST.get(f'{prefix}_format') or '',
-                            teacher=teacher_service.get_by_name(
-                                request.POST.get(f'{prefix}_teacher')),
-                            auditorium=auditorium_service.get_by_number(
-                                request.POST.get(f'{prefix}_auditorium')),
-                            group=group_service.get_by_title(needed_group),
+                            number=cell['number'],
+                            is_special=cell['is_special'],
+                            discipline=discipline_service.get_by_title(cell['discipline']),
+                            format=cell['format'],
+                            teacher=teacher_service.get_by_name(cell['teacher']),
+                            auditorium=auditorium_service.get_by_number(cell['auditorium']),
+                            group=group_service.get_by_title(group_title),
                         )
-                        new_slot = TemporarySchedule(lesson=new_lesson,
-                                                     date=i_date)
-                        schedule.append((new_lesson, new_slot))
-                    except Exception as e:
-                        for error in get_error_messages(e):
-                            messages.error(request, error)
-                i_date += datetime.timedelta(days=1)
-        if not messages.get_messages(request):
-            # перед перезаписью расписания группы — страховочная копия базы
-            create_backup(reason='import')
-            delete_mixed_schedule_by_date_interval(needed_group,
-                                                   convert_string_to_date(start_date),
-                                                   convert_string_to_date(end_date))
-            for lesson, slot in schedule:
-                lesson_service.update(lesson)
-                update(slot)
-            messages.success(request, f'Расписание успешно загружено для группы: ' + needed_group)
-        base_url = reverse('import_mixed_schedule')
-        return redirect(base_url)
+                        lesson_service.update(new_lesson)
+                        update(TemporarySchedule(lesson=new_lesson, date=i_date))
+
+    return JsonResponse({'results': results})
 
 
 @login_required

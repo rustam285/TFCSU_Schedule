@@ -1,8 +1,11 @@
 import copy
+import json
 from datetime import datetime
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.http import JsonResponse, HttpResponseNotAllowed
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
@@ -15,8 +18,8 @@ from ..services import (group_service, discipline_service, lesson_service,
 from ..services.temporary_schedule_service import delete_lessons_by_date, get_by_group_and_date, update, get_by_pk, \
     get_by_group
 from ..services.util import convert_schedule_string_to_date, get_data_for_schedule, convert_date_to_string, \
-    get_error_messages
-from ..services.validation_service import validate_import_group_title, validate_imported_pt_lessons
+    get_error_messages, normalize_import_auditorium
+from ..services.validation_service import validate_import_group_title, validate_import_input_values_for_date
 
 
 @login_required
@@ -132,69 +135,137 @@ def render_edit_page_for_chosen_lesson(request, slot_id):
         return redirect(url)
 
 
-def is_key_of_pt_lesson(key):
-    try:
-        date, number, name = key.split(sep="_")
-        convert_schedule_string_to_date(date)
-        number = int(number)
-        if not number in range(1, 9): raise ValueError
-        if not name in ['discipline', 'format', 'teacher', 'auditorium']: raise ValueError
-    except ValueError:
-        return False
-    return True
-
-
-def update_imported_pt_schedule(lessons, form_data):
-    for date, lesson in lessons.items():
-        for number, lesson_data in lesson.items():
-            new_lesson = Lesson(
-                number=float(number),
-                is_special=lesson_data["is_special"],
-                discipline=discipline_service.get_by_title(lesson_data["discipline"]),
-                format=lesson_data["format"],
-                teacher=teacher_service.get_by_name(lesson_data["teacher"]),
-                auditorium=auditorium_service.get_by_number(lesson_data["auditorium"]),
-                group=group_service.get_by_title(form_data["needed_group"])
-            )
-            new_slot = TemporarySchedule(lesson=new_lesson, date=convert_schedule_string_to_date(date))
-            lesson_service.update(new_lesson)
-            update(new_slot)
+PART_TIME_IMPORT_NUMBERS = set(range(1, 9))
 
 
 @csrf_exempt
 @login_required
 def render_import_page(request):
-    data = get_data_for_schedule()
+    """Страница мультифайлового импорта расписания заочной формы обучения."""
     if request.method == "GET":
+        data = get_data_for_schedule()
+        data['numbers'] = range(1, 9)
         return render(request, 'main/schedule_import/SchedulePartTimeImportPage.html', context=data)
-    if request.method == "POST":
-        form_data = request.POST.dict()
-        try:
-            needed_group = request.POST.get('needed_group')
-            validate_import_group_title(needed_group)
-            lessons = {}
-            for key, value in form_data.items():
-                if is_key_of_pt_lesson(key):
-                    date, number, name = key.split(sep="_")
-                    if date not in lessons:
-                        lessons[date] = {}
-                    if number not in lessons[date]:
-                        lessons[date][number] = {}
-                    lessons[date][number][name] = value
-                    if "is_special" not in lessons[date][number]:
-                        lessons[date][number]["is_special"] = bool(request.POST.get(f'{date}_{number}_is_special'))
-            validate_imported_pt_lessons(lessons)
-            # перед перезаписью расписания группы — страховочная копия базы
-            create_backup(reason='import')
-            Lesson.objects.filter(group=group_service.get_by_title(needed_group)).delete()
-            update_imported_pt_schedule(lessons, form_data)
-            messages.success(request, f'Расписание успешно загружено для группы {needed_group}')
-        except Exception as e:
-            for error in get_error_messages(e):
-                messages.error(request, error)
-        base_url = reverse('import_part_time_schedule')
-        url = f'{base_url}'
-        return redirect(url)
+    return HttpResponseNotAllowed(['GET'])
+
+
+@csrf_exempt
+@login_required
+def save_imported_part_time_schedules(request):
+    """Сохранение результатов мультифайлового импорта заочного расписания (JSON).
+
+    Запрос: {"entries": [{"groups": ["ТФИ-401"],
+        "cells": {"<дата ДД.ММ.ГГГГ>_<№ пары>": {is_special, discipline, format,
+        teacher, auditorium}, ...}}, ...]}
+
+    Записи валидируются независимо друг от друга: сохраняются только записи
+    без ошибок. Расписание групп записи полностью перезаписывается — все
+    прежние пары группы удаляются, пары файла создаются как TemporarySchedule
+    по своим датам. Ошибки возвращаются с ключом "_group" (уровень записи)
+    или с ключом ячейки.
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Ожидается POST-запрос'}, status=405)
+    try:
+        payload = json.loads(request.body.decode('utf-8'))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({'error': 'Некорректный JSON в запросе'}, status=400)
+    entries = payload.get('entries')
+    if not isinstance(entries, list) or not entries:
+        return JsonResponse({'error': 'Нет записей для сохранения'}, status=400)
+
+    results = []
+    to_save = []
+    for index, entry in enumerate(entries):
+        groups = entry.get('groups')
+        if isinstance(groups, str):
+            groups = [part.strip() for part in groups.split(',')]
+        elif isinstance(groups, list):
+            groups = [str(part).strip() for part in groups]
+        else:
+            groups = []
+        # уникальные названия с сохранением порядка
+        groups = list(dict.fromkeys(g for g in groups if g))
+
+        errors = {}
+        valid_groups = []
+        for group_title in groups:
+            try:
+                validate_import_group_title(group_title)
+            except Exception as e:
+                errors.setdefault('_group', []).extend(get_error_messages(e))
+                continue
+            if group_service.get_by_title(group_title).form_of_education != 'з':
+                errors.setdefault('_group', []).append(
+                    f'Группа не относится к заочной форме обучения: {group_title}')
+            else:
+                valid_groups.append(group_title)
+
+        prepared = []
+        for key, cell in (entry.get('cells') or {}).items():
+            parts = str(key).split('_')
+            if len(parts) != 2:
+                continue
+            date_str, number_str = parts
+            try:
+                date = convert_schedule_string_to_date(date_str)
+                number = int(number_str)
+            except ValueError:
+                continue
+            if number not in PART_TIME_IMPORT_NUMBERS:
+                continue
+            discipline = str(cell.get('discipline') or '').strip()
+            teacher = str(cell.get('teacher') or '').strip()
+            fmt = str(cell.get('format') or '').strip()
+            auditorium = normalize_import_auditorium(cell.get('auditorium'))
+            if not (discipline or teacher or fmt or auditorium):
+                continue
+            try:
+                validate_import_input_values_for_date(', '.join(groups), date_str, number_str,
+                                                       discipline, teacher, auditorium)
+                prepared.append({'number': float(number),
+                                 'is_special': bool(cell.get('is_special')),
+                                 'discipline': discipline, 'format': fmt,
+                                 'teacher': teacher, 'auditorium': auditorium,
+                                 'date': date})
+            except Exception as e:
+                errors.setdefault(str(key), []).extend(get_error_messages(e))
+
+        if valid_groups and not errors and not prepared:
+            errors.setdefault('_group', []).append('В файле не найдено ни одной пары — сохранять нечего')
+
+        result = {'index': index, 'groups': groups, 'errors': errors}
+        if errors or not valid_groups:
+            result['status'] = 'failed'
+        else:
+            result['status'] = 'saved'
+            to_save.append({'groups': valid_groups, 'prepared': prepared})
+        results.append(result)
+
+    if to_save:
+        # страховочная копия базы перед перезаписью расписаний групп
+        create_backup(reason='import')
+    for item in to_save:
+        # одна запись = одна колонка файла: все её группы делят общие пары;
+        # перезапись полная — прежнее расписание групп записи удаляется целиком
+        with transaction.atomic():
+            for group_title in item['groups']:
+                Lesson.objects.filter(group=group_service.get_by_title(group_title)).delete()
+            for cell in item['prepared']:
+                for group_title in item['groups']:
+                    new_lesson = Lesson(
+                        number=cell['number'],
+                        is_special=cell['is_special'],
+                        discipline=discipline_service.get_by_title(cell['discipline']),
+                        format=cell['format'],
+                        teacher=teacher_service.get_by_name(cell['teacher']),
+                        auditorium=auditorium_service.get_by_number(cell['auditorium']),
+                        group=group_service.get_by_title(group_title),
+                    )
+                    lesson_service.update(new_lesson)
+                    update(TemporarySchedule(lesson=new_lesson, date=cell['date']))
+
+    return JsonResponse({'results': results})
 
 
 @login_required

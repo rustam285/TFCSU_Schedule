@@ -102,6 +102,9 @@ urlpatterns = [
          part_time_schedule_views.render_edit_page_for_chosen_lesson, name='edit_part_time_lesson'),
     path('admin/import/part_time_schedule/', part_time_schedule_views.render_import_page,
          name="import_part_time_schedule"),
+    # Сохранение результатов мультифайлового импорта заочного расписания (JSON)
+    path('admin/import/part_time_schedule/save/', part_time_schedule_views.save_imported_part_time_schedules,
+         name='import_part_time_schedule_save'),
     path('admin/delete/part_time_schedule/', part_time_schedule_views.render_edit_page,
          name='delete_part_time_schedule'),  # Удалить
 
@@ -113,7 +116,9 @@ urlpatterns = [
     path('admin/edit/mixed_schedule/lesson/<int:slot_id>/', mixed_schedule_views.render_edit_page_for_chosen_lesson,
          name='edit_mixed_lesson'),  # Редактировать конкретный урок
     path('admin/import/mixed_schedule/', mixed_schedule_views.render_import_page, name='import_mixed_schedule'),
-    # Импорт
+    # Сохранение результатов мультифайлового импорта очно-заочного расписания (JSON)
+    path('admin/import/mixed_schedule/save/', mixed_schedule_views.save_imported_mixed_schedules,
+         name='import_mixed_schedule_save'),
     path('admin/delete/mixed_schedule/', mixed_schedule_views.render_delete_page, name='delete_mixed_schedule'),
     # Удалить
     path('export/', database_views.export_excel, name='export_excel'),

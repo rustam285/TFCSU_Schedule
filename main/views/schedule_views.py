@@ -17,7 +17,7 @@ from ..services import (group_service, discipline_service, lesson_service,
 from ..services.constant_schedule_service import get_by_pk, update, get_query_for_table, \
     get_by_time, get_const_schedule_for_group_by_week_and_weekday, get_const_schedule_for_group
 from ..services.temporary_schedule_service import get_query_for_table_by_date
-from ..services.util import get_data_for_schedule, get_error_messages
+from ..services.util import get_data_for_schedule, get_error_messages, normalize_import_auditorium
 from ..services.validation_service import validate_import_group_title, validate_import_input_values
 
 
@@ -244,9 +244,7 @@ def _render_import_page(request, education_type, education_type_label):
 
 def _parse_import_auditorium(value):
     """Аудитория из JSON парсера: 214 (int) или 214.0 (float) -> '214'."""
-    if isinstance(value, float) and value.is_integer():
-        value = int(value)
-    return str(value or '').strip()
+    return normalize_import_auditorium(value)
 
 
 @csrf_exempt

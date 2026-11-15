@@ -35,6 +35,22 @@ def validate_import_input_values(group_title, week, day, number, discipline_titl
         raise ValidationError(f'{error_message_prefix}{validation_errors}')
 
 
+def validate_import_input_values_for_date(group_title, date_str, number,
+                                          discipline_title, teacher_name, auditorium_number):
+    """Как validate_import_input_values, но для пары на конкретную дату
+    (заочная форма: файлы с датами вместо недельной сетки)."""
+    error_message_prefix = f'Пара {date_str}, {group_title}, №{number}:\n'
+    validation_errors = ''
+    if not discipline_service.is_exists_by_title(discipline_title):
+        validation_errors += f'в названии дисциплины ошибка или ее нет в базе({discipline_title});\n'
+    if not teacher_service.is_exists_by_name(teacher_name):
+        validation_errors += f'в имени преподавателя ошибка или его нет в базе({teacher_name});\n'
+    if auditorium_number == '' or not auditorium_service.is_exists_by_number(auditorium_number):
+        validation_errors += f'в номере аудитории ошибка или ее нет в базе({auditorium_number});\n'
+    if len(validation_errors) > 0:
+        raise ValidationError(f'{error_message_prefix}{validation_errors}')
+
+
 def validate_import_group_title(group_title):
     if not group_service.is_exists_by_title(group_title):
         raise ValidationError(f'В названии группы ошибка или ее не существует: {group_title}')

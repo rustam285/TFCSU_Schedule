@@ -162,3 +162,10 @@ def get_current_week_day():
 def get_dates(start_date: datetime.date, end_date: datetime.date) -> list[datetime.date]:
     days_diff = (end_date - start_date).days
     return [start_date + datetime.timedelta(days=x) for x in range(days_diff + 1)]
+
+
+def normalize_import_auditorium(value):
+    """Аудитория из JSON парсера: 214 (int) или 214.0 (float) -> '214', иначе строка."""
+    if isinstance(value, float) and value.is_integer():
+        value = int(value)
+    return str(value or '').strip()
