@@ -69,6 +69,7 @@
         <a class="btn btn-sm btn-outline-dark"
            href="{% url 'export_schedule' %}?type=teacher&id={{ chosen_teacher.id }}&format=pdf">PDF</a>
     </div>
+    {% render_export_range_menu 'teacher' chosen_teacher.id chosen_date_start chosen_date_end %}
     {% endif %}
 </div>
 {% endblock %}

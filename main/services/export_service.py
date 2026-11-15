@@ -1,9 +1,15 @@
-"""Экспорт расписания в виде официальной сетки семестра: Excel, Word, PDF.
+"""Экспорт расписания в Word / Excel / PDF: два режима.
 
-Вид: заголовок из двух строк (кого расписание + семестр) и сетка «дни × пары»,
-где недели 1 и 2 идут рядом. Сетка строится по постоянному расписанию
-(ConstantSchedule); разовые замены на конкретные даты (TemporarySchedule)
-в бланк не включаются и остаются только на сайте.
+1. «Сетка семестра» (build_grid_for_* / export_schedule) — официальный бланк:
+   заголовок из двух строк (кого расписание + семестр) и сетка «дни × пары»,
+   где недели 1 и 2 идут рядом. Сетка строится по постоянному расписанию
+   (ConstantSchedule); разовые замены на конкретную дату (TemporarySchedule)
+   в бланк не включаются и остаются только на сайте.
+
+2. «Расписание за период» (build_date_range_grid_for_* / export_date_range_schedule) —
+   полное расписание по датам: постоянное расписание и замены, развёрнутые
+   на каждую дату диапазона, как на страницах просмотра. Дни — секциями,
+   документ может занимать несколько страниц (без «вписывания в одну страницу»).
 """
 import datetime
 import os
@@ -34,6 +40,9 @@ from reportlab.platypus import Flowable, Paragraph, SimpleDocTemplate, Spacer, T
 from main.forms import LessonForm
 from main.models import ConstantSchedule
 from main.services import teacher_rule_service
+from main.services.constant_schedule_service import (get_table_query_for_auditorium_by_dates,
+                                                     get_table_query_for_group_by_dates,
+                                                     get_table_query_for_teacher_by_dates)
 
 FONT_NAME = 'Times New Roman'
 BASE_LESSON_ROWS = [1, 2, 3, 4, 5, 6]   # пары пн-пт, выводимые всегда; 7/8/ЭКЗ добавляются при наличии
@@ -632,6 +641,280 @@ BUILDERS = {
 def export_schedule(grid, file_format, file_title):
     """Возвращает HttpResponse с файлом сетки расписания в выбранном формате."""
     builder = BUILDERS.get(file_format)
+    if builder is None:
+        raise ValueError(f'Неизвестный формат экспорта: {file_format}')
+    return builder(grid, file_title)
+
+
+# --------------------------------------------------------------------------
+# Расписание за период (постоянное + замены, по датам)
+# --------------------------------------------------------------------------
+
+def build_date_range_grid_for_group(group, dates):
+    """Полное расписание группы по датам — как на странице просмотра."""
+    table_query = get_table_query_for_group_by_dates(group.pk, dates)
+    subject = (f'Расписание группы {group.title} '
+               f'({group.get_form_of_education_display().lower()} форма обучения)')
+    return _assemble_date_range_grid(table_query, subject, dates)
+
+
+def build_date_range_grid_for_teacher(teacher, dates, viewer_is_authenticated=False):
+    """Полное расписание преподавателя по датам (с правилами дисциплин,
+    как на странице просмотра)."""
+    table_query = get_table_query_for_teacher_by_dates(teacher.pk, dates,
+                                                       viewer_is_authenticated)
+    subject = f'Расписание преподавателя {teacher.name}'
+    if teacher.title:
+        subject += f', {teacher.title}'
+    return _assemble_date_range_grid(table_query, subject, dates)
+
+
+def build_date_range_grid_for_auditorium(auditorium, dates):
+    """Полное расписание аудитории по датам; вместо аудитории — группы."""
+    table_query = get_table_query_for_auditorium_by_dates(auditorium.pk, dates)
+    return _assemble_date_range_grid(table_query, f'Расписание аудитории {auditorium.number}',
+                                     dates, auditorium_header='Группы')
+
+
+def _assemble_date_range_grid(table_query, subject_title, dates, auditorium_header='№ ауд.'):
+    """Разворачивает блоки week/day/schedule (как для страниц просмотра)
+    в сетку по датам: день = секция со строками пар.
+
+    Дни без занятий и заголовки недель не включаются.
+    """
+    days = []
+    current_day = None
+    for block in table_query:
+        if block['type'] == 'day':
+            current_day = {'label': block['data'], 'rows': []}
+        elif block['type'] == 'schedule' and current_day is not None:
+            for slot in block['data']:
+                if not slot['number']:  # плейсхолдер «Нет занятий»
+                    continue
+                current_day['rows'].append({'number': slot['number'], 'time': slot['time'],
+                                            'text': slot['lesson_label'],
+                                            'auditorium': '' if slot['auditorium'] is None
+                                            else str(slot['auditorium'])})
+            if current_day['rows']:
+                days.append(current_day)
+            current_day = None
+    period = f'с {dates[0].strftime("%d.%m.%Y")} по {dates[-1].strftime("%d.%m.%Y")}'
+    return {
+        'title': [subject_title, period],
+        'period': period,
+        'days': days,
+        'auditorium_header': auditorium_header,
+    }
+
+
+def build_date_range_xlsx_response(grid, file_title):
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = 'Расписание'
+    ncols = 4
+    for letter, width in zip('ABCD'[:ncols], (5.0, 11.0, 62.0, 10.0)):
+        sheet.column_dimensions[letter].width = width
+
+    # Заголовок: две строки — кого расписание и период
+    for offset, line in enumerate(grid['title']):
+        row = 1 + offset
+        sheet.merge_cells(start_row=row, start_column=1, end_row=row, end_column=ncols)
+        cell = sheet.cell(row=row, column=1, value=line)
+        cell.font = Font(name=FONT_NAME, size=12 if offset == 0 else 10, bold=offset == 0)
+        cell.alignment = Alignment(horizontal='center')
+
+    header_row = len(grid['title']) + 1
+    for column, header in enumerate(('№', 'Время', 'Занятие', grid['auditorium_header']), start=1):
+        sheet.cell(row=header_row, column=column, value=header)
+
+    # Сетка: день — объединённая строка во всю ширину, ниже строки пар
+    day_rows = set()
+    row_number = header_row + 1
+    for day in grid['days']:
+        sheet.merge_cells(start_row=row_number, start_column=1, end_row=row_number, end_column=ncols)
+        sheet.cell(row=row_number, column=1, value=day['label'])
+        day_rows.add(row_number)
+        sheet.row_dimensions[row_number].height = 15
+        row_number += 1
+        for slot in day['rows']:
+            sheet.cell(row=row_number, column=1, value=slot['number'])
+            sheet.cell(row=row_number, column=2, value=slot['time'])
+            sheet.cell(row=row_number, column=3, value=slot['text'])
+            sheet.cell(row=row_number, column=4, value=slot['auditorium'])
+            sheet.row_dimensions[row_number].height = max(
+                15, _estimate_line_count(slot['text'], 58) * 13.5 + 2)
+            row_number += 1
+
+    # Оформление: Times New Roman, выравнивание, границы (внешняя рамка толще внутренней)
+    for row in sheet.iter_rows(min_row=header_row, max_row=row_number - 1, min_col=1, max_col=ncols):
+        for cell in row:
+            is_header_or_day = cell.row == header_row or cell.row in day_rows
+            cell.font = Font(name=FONT_NAME, size=10 if is_header_or_day else 11,
+                             bold=is_header_or_day)
+            cell.border = Border(
+                left=Side(style='medium' if cell.column == 1 else 'thin'),
+                right=Side(style='medium' if cell.column == ncols else 'thin'),
+                top=Side(style='medium' if cell.row == header_row else 'thin'),
+                bottom=Side(style='medium' if cell.row == row_number - 1 else 'thin'))
+            if is_header_or_day:
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            elif cell.column == 1:
+                cell.alignment = Alignment(horizontal='center', vertical='center')
+            elif cell.column == 2:
+                cell.alignment = Alignment(horizontal='left', vertical='center')
+            elif cell.column == 3:
+                cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+            else:
+                cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+    response = _attachment_response(
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', '.xlsx', file_title)
+    workbook.save(response)
+    return response
+
+
+# сумма 18.8 см — с полями 1 см помещается на книжной странице A4
+DATE_RANGE_DOCX_COLUMN_WIDTHS = [1.2, 2.2, 13.4, 2.0]
+
+
+def build_date_range_docx_response(grid, file_title):
+    """Word «расписание за период»: обычная таблица, естественный перенос
+    на следующие страницы (без вписывания в одну страницу)."""
+    document = Document()
+
+    section = document.sections[0]
+    section.page_width, section.page_height = Cm(21.0), Cm(29.7)
+    section.left_margin = section.right_margin = Cm(1.0)
+    section.top_margin = section.bottom_margin = Cm(1.0)
+
+    for index, line in enumerate(grid['title']):
+        paragraph = document.add_paragraph(line)
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph.paragraph_format.space_after = Pt(2)
+        for run in paragraph.runs:
+            run.bold = index == 0
+            run.font.size = Pt(13 if index == 0 else 11)
+
+    table = document.add_table(rows=1, cols=4)
+    table.style = 'Table Grid'
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    _set_docx_cell_margins(table)
+
+    for cell, header in zip(table.rows[0].cells, ('№', 'Время', 'Занятие', grid['auditorium_header'])):
+        _docx_cell(cell, header, bold=True, size=10)
+
+    day_row_trs = set()
+    for day in grid['days']:
+        day_row = table.add_row()
+        day_cell = day_row.cells[0]
+        for other in day_row.cells[1:]:
+            day_cell = day_cell.merge(other)
+        day_row_trs.add(day_row._tr)
+        paragraph = day_cell.paragraphs[0]
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph.paragraph_format.space_before = Pt(0)
+        paragraph.paragraph_format.space_after = Pt(0)
+        run = paragraph.add_run(day['label'])
+        run.bold = True
+        run.font.size = Pt(10)
+        for slot in day['rows']:
+            row = table.add_row()
+            _docx_cell(row.cells[0], slot['number'], size=10)
+            _docx_cell(row.cells[1], slot['time'], size=10)
+            _docx_cell(row.cells[2], slot['text'], size=10)
+            _docx_cell(row.cells[3], slot['auditorium'], size=10)
+
+    # объединённым строкам дней ширину не задаём — она и так во всю таблицу
+    column_widths = [Cm(width) for width in DATE_RANGE_DOCX_COLUMN_WIDTHS]
+    for row in table.rows:
+        if row._tr in day_row_trs:
+            continue
+        for index, cell in enumerate(row.cells):
+            if index < 4:
+                cell.width = column_widths[index]
+
+    response = _attachment_response(
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        '.docx', file_title)
+    document.save(response)
+    return response
+
+
+# сумма 19.0 см — доступно 21 - 2 × 0.8 поля
+DATE_RANGE_PDF_COLUMN_WIDTHS = [1.1, 2.3, 13.6, 2.0]
+
+
+def build_date_range_pdf_response(grid, file_title):
+    """PDF «расписание за период»: многостраничная таблица с повторяющейся шапкой."""
+    _ensure_pdf_font()
+    title_style = ParagraphStyle('RangeTitleStyle', fontName='ExportFont-Bold', fontSize=13,
+                                 leading=16, alignment=TA_CENTER)
+    subtitle_style = ParagraphStyle('RangeSubtitleStyle', fontName='ExportFont', fontSize=11,
+                                    leading=14, alignment=TA_CENTER)
+    day_style = ParagraphStyle('RangeDayStyle', fontName='ExportFont-Bold', fontSize=9.5,
+                               leading=12, alignment=TA_CENTER)
+    header_style = ParagraphStyle('RangeHeaderStyle', fontName='ExportFont-Bold', fontSize=8.5,
+                                  leading=10, alignment=TA_CENTER)
+    cell_style = ParagraphStyle('RangeCellStyle', fontName='ExportFont', fontSize=8.5, leading=10)
+    center_style = ParagraphStyle('RangeCenterStyle', fontName='ExportFont', fontSize=8.5,
+                                  leading=10, alignment=TA_CENTER)
+
+    def as_paragraph(text, style):
+        return Paragraph(str(text).replace('\n', '<br/>'), style)
+
+    pdf_rows = [[as_paragraph(header, header_style)
+                 for header in ('№', 'Время', 'Занятие', grid['auditorium_header'])]]
+    day_rows = []
+    for day in grid['days']:
+        pdf_rows.append([as_paragraph(day['label'], day_style), '', '', ''])
+        day_rows.append(len(pdf_rows) - 1)
+        for slot in day['rows']:
+            pdf_rows.append([as_paragraph(slot['number'], center_style),
+                             as_paragraph(slot['time'], center_style),
+                             as_paragraph(slot['text'], cell_style),
+                             as_paragraph(slot['auditorium'], center_style)])
+
+    table = Table(pdf_rows, colWidths=[width * cm for width in DATE_RANGE_PDF_COLUMN_WIDTHS],
+                  repeatRows=1)
+    table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'ExportFont'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8.5),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('GRID', (0, 0), (-1, -1), 0.6, colors.black),
+        ('LINEABOVE', (0, 0), (-1, 0), 1.4, colors.black),
+        ('LINEBELOW', (0, -1), (-1, -1), 1.4, colors.black),
+        ('LEFTPADDING', (0, 0), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ('TOPPADDING', (0, 0), (-1, -1), 2),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+    ] + [('SPAN', (0, row), (-1, row)) for row in day_rows]
+        + [('BACKGROUND', (0, row), (-1, row), colors.Color(0.93, 0.93, 0.93))
+           for row in day_rows]))
+
+    story = [Paragraph(grid['title'][0], title_style),
+             Paragraph(grid['title'][1], subtitle_style),
+             Spacer(1, 10),
+             table]
+
+    response = _attachment_response('application/pdf', '.pdf', file_title)
+    document = SimpleDocTemplate(
+        response, pagesize=A4,
+        leftMargin=0.8 * cm, rightMargin=0.8 * cm, topMargin=0.8 * cm, bottomMargin=0.8 * cm,
+        title=grid['title'][0])
+    document.build(story)
+    return response
+
+
+DATE_RANGE_BUILDERS = {
+    'xlsx': build_date_range_xlsx_response,
+    'docx': build_date_range_docx_response,
+    'pdf': build_date_range_pdf_response,
+}
+
+
+def export_date_range_schedule(grid, file_format, file_title):
+    """Возвращает HttpResponse с файлом расписания за период в выбранном формате."""
+    builder = DATE_RANGE_BUILDERS.get(file_format)
     if builder is None:
         raise ValueError(f'Неизвестный формат экспорта: {file_format}')
     return builder(grid, file_title)

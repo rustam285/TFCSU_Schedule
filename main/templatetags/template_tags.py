@@ -15,6 +15,17 @@ def render_group_updated_at_list(groups_by_form):
     return {'groups_by_form': groups_by_form}
 
 
+@register.inclusion_tag('components/export_range_menu.html')
+def render_export_range_menu(export_type, object_id, date_start, date_end):
+    """Доп. меню экспорта «полное расписание за период» под кнопками скачивания."""
+    return {
+        'export_type': export_type,
+        'object_id': object_id,
+        'date_start': date_start,
+        'date_end': date_end,
+    }
+
+
 @register.inclusion_tag('components/pagination.html')
 def render_pagination(page_obj, query=''):
     return {'page_obj': page_obj, 'query': query}

@@ -1,0 +1,29 @@
+{# Доп. меню экспорта под кнопками «Скачать»: полное расписание за период #}
+{# (постоянное + замены, как на странице просмотра) в Word / Excel / PDF. #}
+{# Даты предзаполняются выбранным на странице диапазоном; ограничение — 30 дней. #}
+<div class="export-range" style="margin: 0 0 10px 0;">
+    <a class="small" data-bs-toggle="collapse"
+       href="#exportRange-{{ export_type }}-{{ object_id }}" role="button"
+       aria-expanded="false" aria-controls="exportRange-{{ export_type }}-{{ object_id }}">
+        Полное расписание за период (с заменами) ▾
+    </a>
+    <div class="collapse" id="exportRange-{{ export_type }}-{{ object_id }}">
+        <form method="get" action="{% url 'export_schedule' %}"
+              class="d-flex flex-wrap align-items-center gap-2 mt-2 ms-2">
+            <input type="hidden" name="type" value="{{ export_type }}">
+            <input type="hidden" name="id" value="{{ object_id }}">
+            <span class="small text-nowrap">с</span>
+            <input type="date" name="date_from" value="{{ date_start }}" required
+                   class="form-control form-control-sm" style="max-width: 165px;">
+            <span class="small text-nowrap">по</span>
+            <input type="date" name="date_to" value="{{ date_end }}" required
+                   class="form-control form-control-sm" style="max-width: 165px;">
+            <button type="submit" name="format" value="docx"
+                    class="btn btn-sm btn-outline-dark">Word</button>
+            <button type="submit" name="format" value="xlsx"
+                    class="btn btn-sm btn-outline-dark">Excel</button>
+            <button type="submit" name="format" value="pdf"
+                    class="btn btn-sm btn-outline-dark">PDF</button>
+        </form>
+    </div>
+</div>

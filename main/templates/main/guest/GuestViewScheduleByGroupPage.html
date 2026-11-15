@@ -154,6 +154,7 @@
         <a class="btn btn-sm btn-outline-dark"
            href="{% url 'export_schedule' %}?type=group&id={{ chosen_full_time_group.id }}&format=pdf">PDF</a>
     </div>
+    {% render_export_range_menu 'group' chosen_full_time_group.id chosen_date_start chosen_date_end %}
     {% endif %}
 </div>
 
@@ -176,6 +177,7 @@
         <a class="btn btn-sm btn-outline-dark"
            href="{% url 'export_schedule' %}?type=group&id={{ chosen_mixed_group.id }}&format=pdf">PDF</a>
     </div>
+    {% render_export_range_menu 'group' chosen_mixed_group.id chosen_date_start chosen_date_end %}
     {% endif %}
 </div>
 
@@ -198,6 +200,7 @@
         <a class="btn btn-sm btn-outline-dark"
            href="{% url 'export_schedule' %}?type=group&id={{ chosen_part_time_group.id }}&format=pdf">PDF</a>
     </div>
+    {% render_export_range_menu 'group' chosen_part_time_group.id chosen_date_start chosen_date_end %}
     {% endif %}
 </div>
 

@@ -62,6 +62,7 @@
         <a class="btn btn-sm btn-outline-dark"
            href="{% url 'export_schedule' %}?type=auditorium&id={{ chosen_auditorium.id }}&format=pdf">PDF</a>
     </div>
+    {% render_export_range_menu 'auditorium' chosen_auditorium.id chosen_date_start chosen_date_end %}
     {% endif %}
 </div>
 {% endblock %}
