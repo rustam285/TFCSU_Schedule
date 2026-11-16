@@ -110,6 +110,11 @@ class AbstractParserService(ABC):
             ## Убираем код вначале если есть
             discipline_title = re.sub(r'^[A-ZА-ЯЁa-zа-яё\d]+(?:\.\d+)+\s+', '',
                                       discipline_title).replace("\r", "").replace("\n", "")
+            ## Убираем группы в скобках с датами: "(02.10.26 - лекция/ 16.10.26 - пз)" —
+            ## уточнение дат вне сетки, в названии дисциплины ему не место
+            discipline_title = re.sub(r"\s*\([^()]*\d{1,2}\.\d{1,2}(?:\.\d{2,4})?[^()]*\)",
+                                      "", discipline_title)
+            discipline_title = re.sub(r"\s{2,}", " ", discipline_title).strip()
 
             aud_number_cell_value = self.get_merged_value(sheet, lesson_number_row, aud_title_column)
             auditorium_number = self.get_aud_number(aud_number_cell_value)

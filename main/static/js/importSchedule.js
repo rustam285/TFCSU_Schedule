@@ -73,14 +73,17 @@ function formatParserError(result) {
 }
 
 function addParsedResults(fileName, result) {
-    (result.results || []).forEach(scheduleResult => {
+    const results = result.results || [];
+    // многостраничный файл: каждый лист — отдельная запись (подписана листом)
+    const multi = results.length > 1;
+    results.forEach(scheduleResult => {
         let groups = scheduleResult.groups;
         if (typeof groups === 'string') {
             groups = groups.split(',');
         }
         groups = (groups || []).map(g => String(g).trim()).filter(Boolean);
         const cells = scheduleToCells(scheduleResult.schedule);
-        upsertEntry(groups, cells, fileName);
+        upsertEntry(groups, cells, fileName, scheduleResult.sheet_name || null, multi);
     });
 }
 
@@ -107,20 +110,23 @@ function scheduleToCells(schedule) {
     return cells;
 }
 
-function entryKey(groups) {
-    return [...groups].map(g => g.toLowerCase()).sort().join(',');
+function entryKey(groups, sheetName, multi) {
+    const base = [...groups].map(g => g.toLowerCase()).sort().join(',');
+    // в многостраничном файле каждый лист — отдельная запись
+    return multi && sheetName ? `${base}|${sheetName.toLowerCase()}` : base;
 }
 
-function upsertEntry(groups, cells, fileName) {
-    const key = entryKey(groups);
+function upsertEntry(groups, cells, fileName, sheetName, multi) {
+    const key = entryKey(groups, sheetName, multi);
+    const sheetLabel = multi && sheetName ? sheetName : null;
     const existing = entries.findIndex(e => e.key === key);
     if (existing !== -1) {
         // файл с теми же группами: расписание перезаписывается, дубль не создаётся
-        Object.assign(entries[existing], {groups, cells, fileName, errors: null});
+        Object.assign(entries[existing], {groups, cells, fileName, sheetLabel, errors: null});
         if (selectedEntryIndex === existing) selectEntry(existing, {skipCollect: true});
         return existing;
     }
-    entries.push({key, groups, cells, fileName, errors: null});
+    entries.push({key, groups, cells, fileName, sheetLabel, errors: null});
     return entries.length - 1;
 }
 
@@ -205,7 +211,8 @@ function renderEntries() {
         const title = document.createElement('div');
         title.className = 'd-flex justify-content-between align-items-start';
         const titleText = document.createElement('span');
-        titleText.textContent = entry.groups.length ? entry.groups.join(', ') : 'Ошибка разбора файла';
+        const baseLabel = entry.groups.length ? entry.groups.join(', ') : 'Ошибка разбора файла';
+        titleText.textContent = entry.sheetLabel ? `${baseLabel} — ${entry.sheetLabel}` : baseLabel;
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.className = 'btn-close';

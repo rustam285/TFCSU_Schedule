@@ -2,15 +2,17 @@
 //
 // Файлы по очереди отправляются в парсер (расписание-парсер на порту 8001)
 // как очные: файлы очно-заочной формы содержат ту же недельную сетку на
-// 2 недели. Ответ превращается в «запись»: набор групп + сетка пар +
-// интервал дат (дат в файле нет — интервал берётся из полей «по умолчанию»
-// и правится у каждой записи). Записи с одинаковым набором групп
-// перезаписываются. Кнопка «Загрузить» отправляет все записи разом:
-// сохранившиеся исчезают из списка, ошибочные подсвечиваются красным.
+// 2 недели. Многостраничные файлы разбираются по листам: каждый лист —
+// отдельная запись, подписанная названием листа. Если название листа —
+// диапазон дат («01.09-27.09.26»), интервал записи заполняется из него;
+// иначе интервал берётся из полей «по умолчанию» (и правится вручную).
+// Записи с одинаковым набором групп (одним листом) перезаписываются.
+// Кнопка «Загрузить» отправляет все записи разом: сохранившиеся исчезают
+// из списка, ошибочные подсвечиваются красным.
 
 const PARSER_URL = `http://${window.location.hostname}:8001/schedule/parser/schedule/parse`;
 
-const entries = [];            // записи: {key, groups, cells, dateStart, dateEnd, fileName, errors | parseError}
+const entries = [];            // записи: {key, groups, cells, dateStart, dateEnd, fileName, sheetLabel, errors | parseError}
 let selectedEntryIndex = null;
 let parseErrorSeq = 0;
 
@@ -76,15 +78,48 @@ function formatParserError(result) {
     return messages.join('; ');
 }
 
+// Название листа вида «01.09-27.09.26» / «01.12-10.01.27» -> интервал дат.
+// Год не угадываем: если года нет ни у одной даты — интервал не заполняем.
+function parseSheetDateRange(sheetName) {
+    if (!sheetName) return null;
+    const m = String(sheetName).match(
+        /(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?(?:\s*[-–—]\s*|\s+по\s+)(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?/);
+    if (!m) return null;
+    const toYear = (value) => {
+        if (value === undefined) return null;
+        let year = parseInt(value, 10);
+        if (year < 100) year += 2000;
+        return year;
+    };
+    const day1 = parseInt(m[1], 10), month1 = parseInt(m[2], 10);
+    const day2 = parseInt(m[4], 10), month2 = parseInt(m[5], 10);
+    let year1 = toYear(m[3]), year2 = toYear(m[6]);
+    if (year1 === null && year2 === null) return null;
+    // начало в декабре, конец в январе — у более поздней даты следующий год
+    if (year1 === null) year1 = month1 > month2 ? year2 - 1 : year2;
+    if (year2 === null) year2 = month1 > month2 ? year1 + 1 : year1;
+    const iso = (year, month, day) =>
+        `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    const start = iso(year1, month1, day1), end = iso(year2, month2, day2);
+    if (isNaN(new Date(start)) || isNaN(new Date(end))) return null;
+    return {start, end};
+}
+
 function addParsedResults(fileName, result, defaultStart, defaultEnd) {
-    (result.results || []).forEach(scheduleResult => {
+    const results = result.results || [];
+    // в многостраничном файле записи различаются названием листа
+    const multi = results.length > 1;
+    results.forEach(scheduleResult => {
         let groups = scheduleResult.groups;
         if (typeof groups === 'string') {
             groups = groups.split(',');
         }
         groups = (groups || []).map(g => String(g).trim()).filter(Boolean);
         const cells = scheduleToCells(scheduleResult.schedule);
-        upsertEntry(groups, cells, fileName, defaultStart, defaultEnd);
+        const sheetName = scheduleResult.sheet_name || null;
+        const sheetDates = parseSheetDateRange(sheetName);
+        upsertEntry(groups, cells, fileName, sheetName, multi, sheetDates,
+                    defaultStart, defaultEnd);
     });
 }
 
@@ -111,21 +146,29 @@ function scheduleToCells(schedule) {
     return cells;
 }
 
-function entryKey(groups) {
-    return [...groups].map(g => g.toLowerCase()).sort().join(',');
+function entryKey(groups, sheetName, multi) {
+    const base = [...groups].map(g => g.toLowerCase()).sort().join(',');
+    // в многостраничном файле каждый лист — отдельная запись
+    return multi && sheetName ? `${base}|${sheetName.toLowerCase()}` : base;
 }
 
-function upsertEntry(groups, cells, fileName, defaultStart, defaultEnd) {
-    const key = entryKey(groups);
+function upsertEntry(groups, cells, fileName, sheetName, multi, sheetDates,
+                     defaultStart, defaultEnd) {
+    const key = entryKey(groups, sheetName, multi);
+    const dateStart = sheetDates ? sheetDates.start : (defaultStart || '');
+    const dateEnd = sheetDates ? sheetDates.end : (defaultEnd || '');
+    // подпись листа: показываем, если из него взят интервал или лист не один
+    const sheetLabel = sheetName && (sheetDates || multi) ? sheetName : null;
     const existing = entries.findIndex(e => e.key === key);
     if (existing !== -1) {
-        // файл с теми же группами: сетка и интервал перезаписываются, дубль не создаётся
-        Object.assign(entries[existing], {groups, cells, fileName, errors: null});
+        // тот же файл/лист с теми же группами: перезапись, дубль не создаётся
+        Object.assign(entries[existing], {groups, cells, fileName, sheetLabel,
+                                          dateStart, dateEnd, errors: null});
         if (selectedEntryIndex === existing) selectEntry(existing, {skipCollect: true});
         return existing;
     }
-    entries.push({key, groups, cells, dateStart: defaultStart || '', dateEnd: defaultEnd || '',
-                  fileName, errors: null});
+    entries.push({key, groups, cells, dateStart, dateEnd, fileName, sheetLabel,
+                  errors: null});
     return entries.length - 1;
 }
 
@@ -210,7 +253,8 @@ function renderEntries() {
         const title = document.createElement('div');
         title.className = 'd-flex justify-content-between align-items-start';
         const titleText = document.createElement('span');
-        titleText.textContent = entry.groups.length ? entry.groups.join(', ') : 'Ошибка разбора файла';
+        const baseLabel = entry.groups.length ? entry.groups.join(', ') : 'Ошибка разбора файла';
+        titleText.textContent = entry.sheetLabel ? `${baseLabel} — ${entry.sheetLabel}` : baseLabel;
         const closeBtn = document.createElement('button');
         closeBtn.type = 'button';
         closeBtn.className = 'btn-close';

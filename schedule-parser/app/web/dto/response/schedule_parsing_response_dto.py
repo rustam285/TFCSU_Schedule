@@ -25,6 +25,8 @@ class WeeksScheduleResponseDto(ProjectBaseModel):
 class GroupsScheduleDto(ProjectBaseModel):
     groups: List[str]
     schedule: WeeksScheduleResponseDto
+    # название листа Excel, с которого прочитано расписание
+    sheet_name: Optional[str] = None
 
 
 class GroupsSchedulePTDto(ProjectBaseModel):
